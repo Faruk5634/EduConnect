@@ -1,0 +1,30 @@
+package com.educonnect.controller;
+
+import com.educonnect.model.Teacher;
+import com.educonnect.service.TeacherService;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/teachers")
+public class TeacherController {
+
+    private final TeacherService teacherService;
+
+    public TeacherController(TeacherService teacherService) {
+       this.teacherService=teacherService;
+    }
+
+    // Yeni Öğretmen Kaydı (POST)
+    @PostMapping
+    public Teacher createTeacher(@RequestBody Teacher teacher) {
+        return teacherService.createTeacher(teacher);
+    }
+
+    // Tüm Öğretmenleri Listeleme (GET)
+    @GetMapping
+    public List<Teacher> getAllTeachers() {
+        return teacherService.getAllTeachers();
+    }
+}
