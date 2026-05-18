@@ -14,5 +14,5 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     Optional<Student> findBySchoolNumber(String schoolNumber);
 
     //Öğrenci isminde geçen harflere göre arama yapma iş mantığı
-    List<Student> findByNameContainingIgnoreCase(String name);
+    List<Student> findByFirstNameContainingIgnoreCase(String firstName);
 }

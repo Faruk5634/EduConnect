@@ -1,8 +1,8 @@
 package com.educonnect.model;
 
 import jakarta.persistence.*;
-
-import javax.annotation.processing.Generated;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @Entity
 public class Student {
@@ -10,19 +10,25 @@ public class Student {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @NotBlank(message = "Öğrenci adı boş bırakılamaz!")
+    @Size(min = 2, message = "Öğrenci adı en az 2 karakter olmalıdır!")
+    private String firstName;
 
-    private String name;
-    private String surname;
+    @NotBlank(message = "Öğrenci soyadı boş bırakılamaz!")
+    private String lastName;
+
+    @NotBlank(message = "Okul numarası zorunludur!")
     private String schoolNumber;
+
     @ManyToOne // SİHİR BURADA: Her öğrencinin sadece 1 velisi olur.
     private Parent parent;
 
 
 
-    public Student(Long id, String name, String surname, String schoolNumber) {
+    public Student(Long id, String firstName, String lastName, String schoolNumber) {
         this.id = id;
-        this.name = name;
-        this.surname = surname;
+        this.firstName = firstName;
+        this.lastName = lastName;
         this.schoolNumber = schoolNumber;
     }
 
@@ -37,20 +43,20 @@ public class Student {
         this.id = id;
     }
 
-    public String getName() {
-        return name;
+    public String getFirstName() {
+        return firstName;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setFirstName(String name) {
+        this.firstName = name;
     }
 
-    public String getSurname() {
-        return surname;
+    public String getLastName() {
+        return lastName;
     }
 
-    public void setSurname(String surname) {
-        this.surname = surname;
+    public void setLastName(String surname) {
+        this.lastName = surname;
     }
 
     public String getSchoolNumber() {

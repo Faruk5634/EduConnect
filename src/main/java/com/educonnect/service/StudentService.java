@@ -48,8 +48,9 @@ public class StudentService {
                 .orElseThrow(() -> new RuntimeException("Bu okul numarasına ait bir öğrenci bulunamadı!"));
     }
     //Öğrenci isminde geçen harflere göre arama yapma iş mantığı
-    public List<Student> searchStudentsByName(String name) {
-        return studentRepository.findByNameContainingIgnoreCase(name);
+
+    public List<Student> searchStudentsByFirstName(String firstName) {
+        return studentRepository.findByFirstNameContainingIgnoreCase(firstName);
     }
 
 

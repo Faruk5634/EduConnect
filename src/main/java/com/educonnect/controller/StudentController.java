@@ -3,6 +3,7 @@ package com.educonnect.controller;
 import com.educonnect.model.Student;
 import com.educonnect.service.StudentService;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -17,7 +18,7 @@ public class StudentController {
     }
 
     @PostMapping
-    public Student createStudent(@RequestBody Student student) {
+    public Student createStudent(@Valid @RequestBody Student student) {
         return studentService.createStudent(student); // İşi servise pasla
     }
 
@@ -40,8 +41,8 @@ public class StudentController {
 
     //Öğrenci isminde geçen harflere göre arama yapma iş mantığı
     @GetMapping("/search")
-    public List<Student> searchStudentsByName(@RequestParam String name) {
-        return studentService.searchStudentsByName(name);
+    public List<Student> searchStudentsByFirstName(@RequestParam String firstName) {
+        return studentService.searchStudentsByFirstName(firstName);
     }
 
 }
