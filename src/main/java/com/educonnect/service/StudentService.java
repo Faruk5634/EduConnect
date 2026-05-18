@@ -41,4 +41,16 @@ public class StudentService {
         student.setParent(parent);
         return studentRepository.save(student);
     }
+
+    // Okul numarasına göre öğrenci bulma iş mantığı
+    public Student getStudentBySchoolNumber(String schoolNumber) {
+        return studentRepository.findBySchoolNumber(schoolNumber)
+                .orElseThrow(() -> new RuntimeException("Bu okul numarasına ait bir öğrenci bulunamadı!"));
+    }
+    //Öğrenci isminde geçen harflere göre arama yapma iş mantığı
+    public List<Student> searchStudentsByName(String name) {
+        return studentRepository.findByNameContainingIgnoreCase(name);
+    }
+
+
 }

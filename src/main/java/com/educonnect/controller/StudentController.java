@@ -30,4 +30,18 @@ public class StudentController {
     public Student assignParentToStudent(@PathVariable Long studentId, @PathVariable Long parentId) {
         return studentService.assignParent(studentId, parentId); // İşi servise pasla
     }
+
+
+    //  Okul numarasına göre öğrenci bulma iş mantığı
+    @GetMapping("/number/{schoolNumber}")
+    public Student getStudentBySchoolNumber(@PathVariable String schoolNumber) {
+        return studentService.getStudentBySchoolNumber(schoolNumber);
+    }
+
+    //Öğrenci isminde geçen harflere göre arama yapma iş mantığı
+    @GetMapping("/search")
+    public List<Student> searchStudentsByName(@RequestParam String name) {
+        return studentService.searchStudentsByName(name);
+    }
+
 }
