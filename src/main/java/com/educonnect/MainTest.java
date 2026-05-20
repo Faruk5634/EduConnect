@@ -27,7 +27,7 @@ public class MainTest {
         System.out.println("--- " + classroom.getName() + " SINIFI BİLGİ PANELİ ---");
 
         // Sınıfın içinden, rehber hocasının adına ulaşıyoruz! (İşte OOP budur)
-        System.out.println("Matematik Öğretmeni: " + classroom.getHomeroomTeacher().getName() + " " + classroom.getHomeroomTeacher().getSurname());
+        System.out.println("Matematik Öğretmeni: " + classroom.getHomeroomTeacher().getFirstName() + " " + classroom.getHomeroomTeacher().getLastName());
 
         // Sınıfın içindeki öğrenci listesinin boyutunu (size) alıyoruz
         System.out.println("Öğrenci Sayısı: " + classroom.getStudents().size());
