@@ -8,31 +8,30 @@ public class MainTest {
     public static void main(String[] args) {
         System.out.println("Hello, EduConnect!\n");
 
-        // 1. Öğretmeni oluşturduk (Constructor sırasına dikkat: id, SOYAD, AD, branş)
-        Teacher teacher = new Teacher(1L, "Gökmen", "Deniz", "Mathematics");
+        // 1. Öğretmeni oluşturduk (Constructor sırasına dikkat: id, firstName, lastName, branch, homeroomClasses)
+        // En sona List.of() ekleyerek yeni mimarimize uyum sağladık ve fazlalık virgülü sildik!
+        Teacher teacher = new Teacher(1L, "Gökmen", "Deniz", "Mathematics", List.of());
 
         // 2. Öğrencileri oluşturduk
         Student student1 = new Student(1L, "Aytek", "Yılmaz", "1056");
         Student student2 = new Student(2L, "Ceren", "Kara", "1028");
 
-        // 3. Duyuruyu oluşturduk (null yerine LocalDateTime.now() ile o anki zamanı verdik)
+        // 3. Duyuruyu oluşturduk
         Announcement announcement = new Announcement(1L, "Sınav", "Yarın matematik sınavı var.", LocalDateTime.now(), teacher, AnnouncementType.EXAM_INFO);
 
-        // 4. İŞTE SİHRİN GERÇEKLEŞTİĞİ YER:
-        // Sınıfı yaratıyoruz ve öğrencileri listeye (List.of) koyarak sınıfın İÇİNE atıyoruz!
+        // 4. Sınıfı yaratıyoruz ve öğrencileri/duyuruları içine atıyoruz
         Classroom classroom = new Classroom(1L, "5A", 5, teacher, List.of(student1, student2), List.of(announcement));
 
-        // --- TEST ÇIKTISI (Objeler birbiriyle nasıl konuşuyor izle) ---
-
+        // --- TEST ÇIKTISI ---
         System.out.println("--- " + classroom.getName() + " SINIFI BİLGİ PANELİ ---");
 
-        // Sınıfın içinden, rehber hocasının adına ulaşıyoruz! (İşte OOP budur)
+        // Sınıfın içinden, rehber hocasının adına ulaşıyoruz (firstName ve lastName olarak güncellendi!)
         System.out.println("Matematik Öğretmeni: " + classroom.getHomeroomTeacher().getFirstName() + " " + classroom.getHomeroomTeacher().getLastName());
 
-        // Sınıfın içindeki öğrenci listesinin boyutunu (size) alıyoruz
+        // Sınıfın içindeki öğrenci listesinin boyutunu alıyoruz
         System.out.println("Öğrenci Sayısı: " + classroom.getStudents().size());
 
-        // Sınıfın içindeki ilk duyuruyu (0. index) alıp ekrana basıyoruz
+        // Sınıfın içindeki ilk duyuruyu alıp ekrana basıyoruz
         System.out.println("\nSON DUYURU [" + classroom.getAnnouncements().get(0).getType() + "]");
         System.out.println("Başlık: " + classroom.getAnnouncements().get(0).getTitle());
         System.out.println("İçerik: " + classroom.getAnnouncements().get(0).getContent());

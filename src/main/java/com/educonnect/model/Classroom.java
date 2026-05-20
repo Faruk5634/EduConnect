@@ -1,20 +1,25 @@
 package com.educonnect.model;
 
-import jakarta.persistence.*; // Bütün sihirli kelimeleri tek seferde getirmesi için sonuna * koyduk
-
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 public class Classroom {
-    @Id // Kimlik numaramız
+
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name;
+    @NotBlank(message = "Sınıf adı boş bırakılamaz!")
+    private String name; // İnsan olmadığı için "name" olarak bıraktık.
+
     private int gradeLevel;
 
+    // SİHİRLİ KÖPRÜ: Sabahçı/Öğlenci mantığı için harika bir seçim!
     @ManyToOne
+    @JoinColumn(name = "teacher_id") // Veritabanında daha temiz görünmesi için sütun adını belirledik
     private Teacher homeroomTeacher;
 
     @OneToMany(fetch = FetchType.EAGER)
@@ -35,51 +40,17 @@ public class Classroom {
     public Classroom() {
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public int getGradeLevel() {
-        return gradeLevel;
-    }
-
-    public void setGradeLevel(int gradeLevel) {
-        this.gradeLevel = gradeLevel;
-    }
-
-    public Teacher getHomeroomTeacher() {
-        return homeroomTeacher;
-    }
-
-    public void setHomeroomTeacher(Teacher homeroomTeacher) {
-        this.homeroomTeacher = homeroomTeacher;
-    }
-
-    public List<Student> getStudents() {
-        return students;
-    }
-
-    public void setStudents(List<Student> students) {
-        this.students = students;
-    }
-
-    public List<Announcement> getAnnouncements() {
-        return announcements;
-    }
-
-    public void setAnnouncements(List<Announcement> announcements) {
-        this.announcements = announcements;
-    }
+    // --- GETTER VE SETTER METOTLARI (Aynı şekilde duruyor) ---
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public int getGradeLevel() { return gradeLevel; }
+    public void setGradeLevel(int gradeLevel) { this.gradeLevel = gradeLevel; }
+    public Teacher getHomeroomTeacher() { return homeroomTeacher; }
+    public void setHomeroomTeacher(Teacher homeroomTeacher) { this.homeroomTeacher = homeroomTeacher; }
+    public List<Student> getStudents() { return students; }
+    public void setStudents(List<Student> students) { this.students = students; }
+    public List<Announcement> getAnnouncements() { return announcements; }
+    public void setAnnouncements(List<Announcement> announcements) { this.announcements = announcements; }
 }

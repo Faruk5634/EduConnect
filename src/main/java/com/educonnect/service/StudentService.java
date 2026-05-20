@@ -1,10 +1,12 @@
 package com.educonnect.service;
 
+import com.educonnect.dto.StudentDTO;
 import com.educonnect.model.Parent;
 import com.educonnect.model.Student;
 import com.educonnect.repository.ParentRepository;
 import com.educonnect.repository.StudentRepository;
 import org.springframework.stereotype.Service;
+import java.util.stream.Collectors;
 
 import java.util.List;
 
@@ -25,9 +27,12 @@ public class StudentService {
         return studentRepository.save(student);
     }
 
-    // 2. Tüm Öğrencileri Getirme Mantığı
-    public List<Student> getAllStudents() {
-        return studentRepository.findAll();
+    // 2. Tüm Öğrencileri Getirme Mantığı (DTO DÖNÜŞÜMLÜ)
+    public List<StudentDTO> getAllStudents() {
+        return studentRepository.findAll()
+                .stream()
+                .map(this::convertToDTO) // Her bir öğrenciyi DTO'ya çevir
+                .collect(Collectors.toList());
     }
 
     // 3. Veli Atama Mantığı (Uzun kodumuz artık burada güvende)
@@ -51,6 +56,22 @@ public class StudentService {
 
     public List<Student> searchStudentsByFirstName(String firstName) {
         return studentRepository.findByFirstNameContainingIgnoreCase(firstName);
+    }
+
+    // Aşçı Yamağı: Çiğ Student objesini, şık StudentDTO'ya çevirir.
+    private StudentDTO convertToDTO(Student student) {
+        // Eğer öğrencinin velisi varsa adını soyadını birleştir, yoksa "Veli Atanmadı" yaz.
+        String parentName = (student.getParent() != null)
+                ? student.getParent().getFirstName() + " " + student.getParent().getLastName()
+                : "Veli Atanmadı";
+
+        return new StudentDTO(
+                student.getId(),
+                student.getFirstName(),
+                student.getLastName(),
+                student.getSchoolNumber(),
+                parentName
+        );
     }
 
 

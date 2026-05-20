@@ -1,7 +1,9 @@
 package com.educonnect.controller;
 
+import com.educonnect.dto.ClassroomDTO;
 import com.educonnect.model.Classroom;
 import com.educonnect.service.ClassroomService;
+import jakarta.validation.Valid; // Güvenlik kalkanı için eklendi
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,12 +20,12 @@ public class ClassroomController {
     }
 
     @PostMapping
-    public Classroom createClassroom(@RequestBody Classroom classroom) {
+    public Classroom createClassroom(@Valid @RequestBody Classroom classroom) { // @Valid eklendi
         return classroomService.createClassroom(classroom);
     }
 
     @GetMapping
-    public List<Classroom> getAllClassrooms() {
+    public List<ClassroomDTO> getAllClassrooms() {
         return classroomService.getAllClassrooms();
     }
 
@@ -35,5 +37,11 @@ public class ClassroomController {
     @PostMapping("/{classId}/announcements/{announcementId}")
     public Classroom addAnnouncementToClass(@PathVariable Long classId, @PathVariable Long announcementId) {
         return classroomService.addAnnouncementToClass(classId, announcementId);
+    }
+
+    // YENİ KÖPRÜMÜZ: Sınıfa öğretmen atama
+    @PutMapping("/{classId}/teacher/{teacherId}")
+    public Classroom assignTeacherToClassroom(@PathVariable Long classId, @PathVariable Long teacherId) {
+        return classroomService.assignTeacherToClassroom(classId, teacherId);
     }
 }

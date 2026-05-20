@@ -1,5 +1,6 @@
 package com.educonnect.controller;
 
+import com.educonnect.dto.ParentDTO;
 import com.educonnect.model.Parent;
 import com.educonnect.service.ParentService;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +24,7 @@ public class ParentController {
     }
 
     @GetMapping
-    public List<Parent> getAllParents() {
+    public List<ParentDTO> getAllParents() {
         return parentService.getAllParents();
     }
 }

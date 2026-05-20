@@ -1,5 +1,6 @@
 package com.educonnect.controller;
 
+import com.educonnect.dto.StudentDTO;
 import com.educonnect.model.Student;
 import com.educonnect.service.StudentService;
 import org.springframework.web.bind.annotation.*;
@@ -23,8 +24,8 @@ public class StudentController {
     }
 
     @GetMapping
-    public List<Student> getAllStudents() {
-        return studentService.getAllStudents(); // İşi servise pasla
+    public List<StudentDTO> getAllStudents() {
+        return studentService.getAllStudents();
     }
 
     @PutMapping("/{studentId}/parent/{parentId}")

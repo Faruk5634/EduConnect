@@ -1,5 +1,6 @@
 package com.educonnect.controller;
 
+import com.educonnect.dto.TeacherDTO;
 import com.educonnect.model.Teacher;
 import com.educonnect.service.TeacherService;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +25,7 @@ public class TeacherController {
 
     // Tüm Öğretmenleri Listeleme (GET)
     @GetMapping
-    public List<Teacher> getAllTeachers() {
+    public List<TeacherDTO> getAllTeachers() {
         return teacherService.getAllTeachers();
     }
 }
