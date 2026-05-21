@@ -7,6 +7,10 @@ import com.educonnect.repository.ParentRepository;
 import com.educonnect.repository.StudentRepository;
 import org.springframework.stereotype.Service;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 
 import java.util.List;
 
@@ -54,8 +58,12 @@ public class StudentService {
     }
     //Öğrenci isminde geçen harflere göre arama yapma iş mantığı
 
-    public List<Student> searchStudentsByFirstName(String firstName) {
-        return studentRepository.findByFirstNameContainingIgnoreCase(firstName);
+    // İsme Göre Akıllı Arama Mantığı
+    public List<StudentDTO> searchStudentsByFirstName(String firstName) {
+        return studentRepository.findByFirstNameContainingIgnoreCase(firstName)
+                .stream()
+                .map(this::convertToDTO) // Önceden yazdığımız o harika DTO çevirici yamak çalışıyor!
+                .collect(Collectors.toList());
     }
 
     // Aşçı Yamağı: Çiğ Student objesini, şık StudentDTO'ya çevirir.
@@ -72,6 +80,16 @@ public class StudentService {
                 student.getSchoolNumber(),
                 parentName
         );
+    }
+
+    // SAYFALAMA MANTIĞI: Verileri porsiyonlara bölerek getirir
+    public Page<StudentDTO> getStudentsPaginated(int page, int size) {
+        // Hangi sayfa (page) ve her sayfada kaç veri olacak (size) ayarlıyoruz
+        Pageable pageable = PageRequest.of(page, size);
+
+        // Spring'in harika özelliği: Page objesinin kendi map() metodu vardır!
+        return studentRepository.findAll(pageable)
+                .map(this::convertToDTO); // Yine o şık garsonumuzu (DTO) kullanıyoruz
     }
 
 

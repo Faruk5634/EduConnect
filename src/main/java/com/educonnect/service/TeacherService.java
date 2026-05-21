@@ -41,6 +41,13 @@ public class TeacherService {
         );
     }
 
+    // Branşa Göre Akıllı Arama Mantığı
+    public List<TeacherDTO> searchTeachersByBranch(String branch) {
+        return teacherRepository.findByBranchContainingIgnoreCase(branch)
+                .stream()
+                .map(this::convertToDTO) // Çiğ veriyi şık DTO tabağına alıyoruz
+                .collect(java.util.stream.Collectors.toList());
+    }
 
 
 

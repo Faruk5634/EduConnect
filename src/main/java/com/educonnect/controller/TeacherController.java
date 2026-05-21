@@ -28,4 +28,11 @@ public class TeacherController {
     public List<TeacherDTO> getAllTeachers() {
         return teacherService.getAllTeachers();
     }
+
+    // YENİ KÖPRÜ: Arama motoru -> http://localhost:8080/api/teachers/search?branch=Matematik
+    @GetMapping("/search")
+    public List<TeacherDTO> searchTeachers(@RequestParam String branch) {
+        return teacherService.searchTeachersByBranch(branch);
+    }
+
 }

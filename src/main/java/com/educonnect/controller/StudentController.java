@@ -3,6 +3,7 @@ package com.educonnect.controller;
 import com.educonnect.dto.StudentDTO;
 import com.educonnect.model.Student;
 import com.educonnect.service.StudentService;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
@@ -42,8 +43,17 @@ public class StudentController {
 
     //Öğrenci isminde geçen harflere göre arama yapma iş mantığı
     @GetMapping("/search")
-    public List<Student> searchStudentsByFirstName(@RequestParam String firstName) {
+    public List<StudentDTO> searchStudentsByFirstName(@RequestParam String firstName) {
         return studentService.searchStudentsByFirstName(firstName);
+    }
+
+
+    @GetMapping("/page")
+    public Page<StudentDTO> getStudentsPaginated(
+            @RequestParam(defaultValue = "0") int page, // Kullanıcı bir şey demezse 0. sayfa (İlk sayfa)
+            @RequestParam(defaultValue = "10") int size) { // Kullanıcı bir şey demezse sayfada 10 kişi
+
+        return studentService.getStudentsPaginated(page, size);
     }
 
 }
