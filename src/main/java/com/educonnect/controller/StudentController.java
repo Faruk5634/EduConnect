@@ -6,6 +6,9 @@ import com.educonnect.service.StudentService;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.http.ResponseEntity;
 
 import java.util.List;
 
@@ -54,6 +57,16 @@ public class StudentController {
             @RequestParam(defaultValue = "10") int size) { // Kullanıcı bir şey demezse sayfada 10 kişi
 
         return studentService.getStudentsPaginated(page, size);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteStudent(@PathVariable Long id) {
+        // Servis katmanından silme işlemini çağırıyoruz
+        // Not: Eğer senin servisindeki metodun adı farklıysa (örn: deleteById) burayı ona göre düzenle
+        studentService.deleteStudent(id);
+
+        // İşlem başarılı, ancak geri döndürecek bir veri yok (204 No Content) mesajı yolluyoruz
+        return ResponseEntity.noContent().build();
     }
 
 }
