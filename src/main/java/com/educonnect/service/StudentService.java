@@ -96,4 +96,19 @@ public class StudentService {
     public void deleteStudent(Long id) {
         studentRepository.deleteById(id);
     }
+
+    public void updateStudent(Long id, Student updatedStudent) {
+        // 1. Önce veritabanında bu öğrenci var mı diye buluyoruz
+        Student existingStudent = studentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Öğrenci bulunamadı!"));
+
+        // 2. Eski bilgileri, React'ten gelen yeni bilgilerle değiştiriyoruz
+        existingStudent.setSchoolNumber(updatedStudent.getSchoolNumber());
+        existingStudent.setFirstName(updatedStudent.getFirstName());
+        existingStudent.setLastName(updatedStudent.getLastName());
+
+        // 3. Yeni halini veritabanına geri kaydediyoruz (save metodu ID varsa günceller, yoksa yeni ekler)
+        studentRepository.save(existingStudent);
+    }
+
 }

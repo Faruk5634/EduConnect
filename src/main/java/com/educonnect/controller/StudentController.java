@@ -9,6 +9,8 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 
@@ -67,6 +69,16 @@ public class StudentController {
 
         // İşlem başarılı, ancak geri döndürecek bir veri yok (204 No Content) mesajı yolluyoruz
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateStudent(@PathVariable Long id, @RequestBody com.educonnect.model.Student updatedStudent) {
+        // 1. Servis katmanına "Bu ID'li öğrenciyi bu yeni bilgilerle güncelle" diyoruz.
+        // Not: com.educonnect.entity.Student kısmını kendi Student sınıfının paketine göre (gerekirse import ederek) düzelt
+        studentService.updateStudent(id, updatedStudent);
+
+        // 2. İşlem başarılı mesajı dönüyoruz
+        return ResponseEntity.ok().build();
     }
 
 }
