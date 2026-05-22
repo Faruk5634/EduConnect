@@ -27,4 +27,7 @@ public class ParentController {
     public List<ParentDTO> getAllParents() {
         return parentService.getAllParents();
     }
+
+
+
 }

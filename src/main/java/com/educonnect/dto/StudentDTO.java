@@ -6,19 +6,22 @@ public class StudentDTO {
     private String firstName;
     private String lastName;
     private String schoolNumber;
-
-    // DİKKAT: Bütün Parent objesi yerine sadece Velinin Adı Soyadı!
     private String parentFullName;
+
+    // Açılır menünün çalışması için gereken ID
+    private Long parentId;
 
     public StudentDTO() {
     }
 
-    public StudentDTO(Long id, String firstName, String lastName, String schoolNumber, String parentFullName) {
+    // 🚀 DİKKAT: Constructor'ın sonuna Long parentId eklendi!
+    public StudentDTO(Long id, String firstName, String lastName, String schoolNumber, String parentFullName, Long parentId) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
         this.schoolNumber = schoolNumber;
         this.parentFullName = parentFullName;
+        this.parentId = parentId; // 🚀 Eşleştirme yapıldı
     }
 
     // --- GETTER VE SETTER METOTLARI ---
@@ -32,4 +35,6 @@ public class StudentDTO {
     public void setSchoolNumber(String schoolNumber) { this.schoolNumber = schoolNumber; }
     public String getParentFullName() { return parentFullName; }
     public void setParentFullName(String parentFullName) { this.parentFullName = parentFullName; }
+    public Long getParentId() { return parentId; }
+    public void setParentId(Long parentId) { this.parentId = parentId; }
 }
