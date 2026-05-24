@@ -64,4 +64,11 @@ public class JwtFilter extends OncePerRequestFilter {
         // Memur işini bitirdi. İsteği bir sonraki aşamaya yolla (Bileti olmayanlar zaten kapıda kalacak)
         filterChain.doFilter(request, response);
     }
+
+    @Override
+    protected boolean shouldNotFilter(jakarta.servlet.http.HttpServletRequest request) throws jakarta.servlet.ServletException {
+        String path = request.getRequestURI();
+        // Eğer istek /api/auth/ ile başlıyorsa (login veya register), bilet kontrolü YAPMA!
+        return path.startsWith("/api/auth/");
+    }
 }
