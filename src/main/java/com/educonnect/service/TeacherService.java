@@ -28,8 +28,10 @@ public class TeacherService {
 
     // TeacherService sınıfının içine eklenecek dönüşüm mantığı:
     private TeacherDTO convertToDTO(Teacher teacher) {
-        List<String> classNames = teacher.getHomeroomClasses() != null
-                ? teacher.getHomeroomClasses().stream().map(Classroom::getName).collect(java.util.stream.Collectors.toList())
+        List<TeacherDTO.ClassroomInfo> classInfos = teacher.getHomeroomClasses() != null
+                ? teacher.getHomeroomClasses().stream()
+                  .map(c -> new TeacherDTO.ClassroomInfo(c.getId(), c.getName()))
+                  .collect(java.util.stream.Collectors.toList())
                 : List.of();
 
         return new TeacherDTO(
@@ -37,7 +39,7 @@ public class TeacherService {
                 teacher.getFirstName(),
                 teacher.getLastName(),
                 teacher.getBranch(),
-                classNames
+                classInfos // List<String> yerine yeni listemizi verdik
         );
     }
 
@@ -49,6 +51,12 @@ public class TeacherService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    public TeacherDTO getTeacherProfileByUsername(String username) {
+        Teacher teacher = teacherRepository.findByUserUsername(username)
+                .orElseThrow(() -> new RuntimeException("Eyvah! Bu kullanıcıya ait bir öğretmen profili bulunamadı."));
+
+        return convertToDTO(teacher);
+    }
 
 
 }

@@ -21,10 +21,16 @@ public class Teacher {
     @NotBlank(message = "Branş boş bırakılamaz!")
     private String branch;
 
-    // SİHİRLİ KÖPRÜ: Classroom'daki 'homeroomTeacher' değişkeni ile eşleşir.
+    // SİHİRLİ KÖPRÜ 1: Classroom'daki 'homeroomTeacher' değişkeni ile eşleşir.
     @OneToMany(mappedBy = "homeroomTeacher")
     @JsonIgnore // Postman sonsuz döngüye girip çökmesin diye kalkanımız
     private List<Classroom> homeroomClasses;
+
+    // 🚀 YENİ SİHİRLİ KÖPRÜ 2: Güvenlik tablosu (User) ile bağlantı!
+    // Bu sayede giriş yapan kişinin hangi öğretmen olduğunu şak diye bulacağız.
+    @OneToOne
+    @JoinColumn(name = "user_id", referencedColumnName = "id")
+    private User user;
 
     public Teacher(Long id, String firstName, String lastName, String branch, List<Classroom> homeroomClasses) {
         this.id = id;
@@ -48,4 +54,8 @@ public class Teacher {
     public void setBranch(String branch) { this.branch = branch; }
     public List<Classroom> getHomeroomClasses() { return homeroomClasses; }
     public void setHomeroomClasses(List<Classroom> homeroomClasses) { this.homeroomClasses = homeroomClasses; }
+
+    // 🚀 YENİ EKLENEN GETTER/SETTER
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
 }

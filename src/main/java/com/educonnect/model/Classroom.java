@@ -15,7 +15,7 @@ public class Classroom {
     @NotBlank(message = "Sınıf adı boş bırakılamaz!")
     private String name; // İnsan olmadığı için "name" olarak bıraktık.
 
-    private int gradeLevel;
+    private Integer gradeLevel;
 
     // SİHİRLİ KÖPRÜ: Sabahçı/Öğlenci mantığı için harika bir seçim!
     @ManyToOne
@@ -28,7 +28,7 @@ public class Classroom {
     @OneToMany
     private List<Announcement> announcements = new ArrayList<>();
 
-    public Classroom(Long id, String name, int gradeLevel, Teacher homeroomTeacher, List<Student> students, List<Announcement> announcements) {
+    public Classroom(Long id, String name, Integer gradeLevel, Teacher homeroomTeacher, List<Student> students, List<Announcement> announcements) {
         this.id = id;
         this.name = name;
         this.gradeLevel = gradeLevel;
@@ -45,8 +45,8 @@ public class Classroom {
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-    public int getGradeLevel() { return gradeLevel; }
-    public void setGradeLevel(int gradeLevel) { this.gradeLevel = gradeLevel; }
+    public Integer getGradeLevel() { return gradeLevel; }
+    public void setGradeLevel(Integer gradeLevel) { this.gradeLevel = gradeLevel; }
     public Teacher getHomeroomTeacher() { return homeroomTeacher; }
     public void setHomeroomTeacher(Teacher homeroomTeacher) { this.homeroomTeacher = homeroomTeacher; }
     public List<Student> getStudents() { return students; }

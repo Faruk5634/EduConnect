@@ -14,18 +14,24 @@ public class Announcement {
     private LocalDateTime createdDate;
 
     @ManyToOne
+    @JoinColumn(name = "author_id")
     private Teacher author;
 
     @Enumerated(EnumType.STRING)
     private AnnouncementType type;
 
-    public Announcement(Long id, String title, String content, LocalDateTime createdDate, Teacher author, AnnouncementType type) {
+    @ManyToOne
+    @JoinColumn(name = "classroom_id")
+    private Classroom classroom;
+
+    public Announcement(Long id, String title, String content, LocalDateTime createdDate, Teacher author, AnnouncementType type,Classroom classroom) {
         this.id = id;
         this.title = title;
         this.content = content;
         this.createdDate = createdDate;
         this.author = author;
         this.type = type;
+        this.classroom=classroom;
     }
 
 
@@ -79,6 +85,10 @@ public class Announcement {
     public void setType(AnnouncementType type) {
         this.type = type;
     }
+
+    public Classroom getClassroom() { return classroom; }
+
+    public void setClassroom(Classroom classroom) { this.classroom = classroom; }
 }
 
 

@@ -17,7 +17,7 @@ public class MainTest {
         Student student2 = new Student(2L, "Ceren", "Kara", "1028");
 
         // 3. Duyuruyu oluşturduk
-        Announcement announcement = new Announcement(1L, "Sınav", "Yarın matematik sınavı var.", LocalDateTime.now(), teacher, AnnouncementType.EXAM_INFO);
+        Announcement announcement = new Announcement(1L, "Sınav", "Yarın matematik sınavı var.", LocalDateTime.now(), teacher, AnnouncementType.EXAM_INFO, null);
 
         // 4. Sınıfı yaratıyoruz ve öğrencileri/duyuruları içine atıyoruz
         Classroom classroom = new Classroom(1L, "5A", 5, teacher, List.of(student1, student2), List.of(announcement));

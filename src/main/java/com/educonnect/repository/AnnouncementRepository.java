@@ -18,4 +18,6 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, Long
 
     //Duyrunun yapıldığı zamana göre filtreleme iş mantığı
     List<Announcement> findByCreatedDateAfter(java.time.LocalDateTime date);
+
+    List<Announcement> findByClassroom_IdOrderByCreatedDateDesc(Long classroomId);
 }

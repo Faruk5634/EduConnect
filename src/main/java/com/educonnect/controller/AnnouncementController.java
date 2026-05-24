@@ -6,6 +6,7 @@ import com.educonnect.service.AnnouncementService;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.format.annotation.DateTimeFormat;
 import java.time.LocalDateTime;
+import java.security.Principal;
 
 import java.util.List;
 
@@ -17,11 +18,12 @@ public class AnnouncementController {
 
     public AnnouncementController(AnnouncementService announcementService) {
         this.announcementService = announcementService;
+
     }
 
-    @PostMapping
-    public Announcement createAnnouncement(@RequestBody Announcement announcement) {
-        return announcementService.createAnnouncement(announcement);
+    @PostMapping("/create")
+    public Announcement createAnnouncement(@RequestBody Announcement announcement, Principal principal) {
+        return announcementService.createAnnouncement(announcement, principal.getName());
     }
 
     @GetMapping
@@ -40,7 +42,9 @@ public class AnnouncementController {
     public List<Announcement> getAnnouncementsByAuthorId(@PathVariable Long authorId) {
         return announcementService.getAnnouncementsByAuthorId(authorId);
     }
-    //Duyrunun yapıldığı zamana göre filtreleme iş mantığı
+
+
+
 
 
     @GetMapping("/after")
@@ -49,4 +53,6 @@ public class AnnouncementController {
 
         return announcementService.getAnnouncementsAfter(date);
     }
+
+
 }

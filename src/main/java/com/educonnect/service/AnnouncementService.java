@@ -4,6 +4,8 @@ import com.educonnect.model.Announcement;
 import com.educonnect.model.AnnouncementType;
 import com.educonnect.repository.AnnouncementRepository;
 import org.springframework.stereotype.Service;
+import com.educonnect.repository.TeacherRepository;
+import com.educonnect.model.Teacher;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,14 +14,20 @@ import java.util.List;
 public class AnnouncementService {
 
     private final AnnouncementRepository announcementRepository;
+    private final TeacherRepository teacherRepository;
 
-    public AnnouncementService(AnnouncementRepository announcementRepository) {
+    public AnnouncementService(AnnouncementRepository announcementRepository,TeacherRepository teacherRepository) {
         this.announcementRepository = announcementRepository;
+        this.teacherRepository=teacherRepository;
     }
 
-    public Announcement createAnnouncement(Announcement announcement) {
-        // Tarih atama iş mantığı artık Service'te!
-        announcement.setCreatedDate(LocalDateTime.now());
+    public Announcement createAnnouncement(Announcement announcement,String username) {
+        Teacher author = teacherRepository.findByUserUsername(username)
+                .orElseThrow(() -> new RuntimeException("Duyuru yapacak öğretmen bulunamadı!"));
+
+        announcement.setAuthor(author); // Yazarı güvenli şekilde ata
+        announcement.setCreatedDate(LocalDateTime.now()); // Tarihi ata
+
         return announcementRepository.save(announcement);
     }
 
