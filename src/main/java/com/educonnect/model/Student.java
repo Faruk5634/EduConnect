@@ -3,10 +3,16 @@ package com.educonnect.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.JoinColumn;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Student {
 
     @Id
@@ -20,7 +26,14 @@ public class Student {
     private String lastName;
 
     @NotBlank(message = "Okul numarası zorunludur!")
+    @Column(unique = true)
     private String schoolNumber;
+
+    private String grade;
+
+    @OneToOne
+    @JoinColumn(name = "user_id", referencedColumnName = "id")
+    private User user;
 
     @ManyToOne // SİHİR BURADA: Her öğrencinin sadece 1 velisi olur.
     @JoinColumn(name = "parent_id") // Veritabanında "parent_id" adında bir sütun oluşturur ve bu sütun Parent tablosundaki id'ye referans verir.
@@ -33,9 +46,6 @@ public class Student {
         this.firstName = firstName;
         this.lastName = lastName;
         this.schoolNumber = schoolNumber;
-    }
-
-    public Student() {
     }
 
     public Long getId() {
@@ -76,5 +86,13 @@ public class Student {
 
     public void setParent(Parent parent) {
         this.parent = parent;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }

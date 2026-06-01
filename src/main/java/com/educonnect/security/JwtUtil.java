@@ -4,9 +4,11 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import jakarta.annotation.PostConstruct;
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
@@ -16,24 +18,31 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    private static final String SECRET_KEY = "EduConnectProjesininCokGizliVeGuvenliAnahtariBuKadarUzunOlmali";
-    private final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
+    @Value("${jwt.secret:gizliAnahtarEduConnect12345678901234567890}")
+    private String secretKey;
+
+    private Key key;
     private final long EXPIRATION_TIME = 1000 * 60 * 60 * 10;
+
+    @PostConstruct
+    public void initKey() {
+        this.key = Keys.hmacShaKeyFor(secretKey.getBytes());
+    }
 
     // --- BİLET (TOKEN) BASMA İŞLEMİ ---
     public String generateToken(UserDetails userDetails) {
-        Map<String, Object> claims = new HashMap<>();
-
-        // 🚀 SİHİRLİ DOKUNUŞ: Kullanıcının rütbesini (ROLE_ADMIN, ROLE_TEACHER vb.)
-        // userDetails içinden alıp biletin şifreli gövdesine (claims) ekliyoruz.
         String role = userDetails.getAuthorities().stream()
                 .findFirst()
                 .map(auth -> auth.getAuthority())
                 .orElse("");
 
-        claims.put("role", role); // Biletin içine "role": "ROLE_XXX" olarak yazıldı!
+        return generateToken(userDetails.getUsername(), role);
+    }
 
-        return createToken(claims, userDetails.getUsername());
+    public String generateToken(String username, String role) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("role", role);
+        return createToken(claims, username);
     }
 
     private String createToken(Map<String, Object> claims, String subject) {
