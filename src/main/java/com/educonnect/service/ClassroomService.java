@@ -96,4 +96,43 @@ public class ClassroomService {
                 studentNames
         );
     }
+
+    public void deleteClassroom(Long id) {
+        Classroom classroom = classroomRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Sınıf bulunamadı!"));
+
+        // 1. Sınıfın rehber öğretmeni ile bağı kopar
+        classroom.setHomeroomTeacher(null);
+        classroomRepository.save(classroom);
+
+        // 2. Sınıfa kayıtlı öğrencilerin sınıf bilgisini null yap
+        List<Student> students = studentRepository.findByClassroom(classroom);
+        for (Student s : students) {
+            s.setClassroom(null);
+            studentRepository.save(s);
+        }
+
+        // 3. Artık silebilirsin
+        classroomRepository.delete(classroom);
+    }
+
+    // Hem sınıf bilgilerini hem de rehber öğretmeni aynı anda güncelleyen metodumuz
+    public void updateClassroom(Long id, Classroom updatedClassroom, Long teacherId) {
+        Classroom existing = classroomRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Sınıf bulunamadı!"));
+
+        existing.setName(updatedClassroom.getName());
+        existing.setGradeLevel(updatedClassroom.getGradeLevel());
+
+        if (teacherId != null) {
+            Teacher teacher = teacherRepository.findById(teacherId)
+                    .orElseThrow(() -> new RuntimeException("Öğretmen bulunamadı!"));
+            existing.setHomeroomTeacher(teacher);
+        } else {
+            existing.setHomeroomTeacher(null); // Öğretmen seçilmemişse temizle
+        }
+
+        classroomRepository.save(existing);
+    }
+
 }

@@ -44,4 +44,20 @@ public class ClassroomController {
     public Classroom assignTeacherToClassroom(@PathVariable Long classId, @PathVariable Long teacherId) {
         return classroomService.assignTeacherToClassroom(classId, teacherId);
     }
+
+    @DeleteMapping("/{id}")
+    public org.springframework.http.ResponseEntity<Void> deleteClassroom(@PathVariable Long id) {
+        classroomService.deleteClassroom(id);
+        return org.springframework.http.ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}")
+    public org.springframework.http.ResponseEntity<?> updateClassroom(
+            @PathVariable Long id,
+            @RequestBody com.educonnect.model.Classroom classroom,
+            @RequestParam(required = false) Long teacherId) {
+
+        classroomService.updateClassroom(id, classroom, teacherId);
+        return org.springframework.http.ResponseEntity.ok().build();
+    }
 }

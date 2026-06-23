@@ -1,5 +1,6 @@
 package com.educonnect.repository;
 
+import com.educonnect.model.Classroom;
 import com.educonnect.model.Student;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -11,6 +12,7 @@ import java.util.Optional;
 public interface StudentRepository extends JpaRepository<Student, Long> {
 
     // Okul numarasına göre öğrenci bulma iş mantığı
+    List<Student> findByClassroom(Classroom classroom);
     Optional<Student> findBySchoolNumber(String schoolNumber);
 
     //Öğrenci isminde geçen harflere göre arama yapma iş mantığı

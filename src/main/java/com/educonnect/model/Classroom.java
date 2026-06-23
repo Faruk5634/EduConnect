@@ -18,12 +18,14 @@ public class Classroom {
     private Integer gradeLevel;
 
     // SİHİRLİ KÖPRÜ: Sabahçı/Öğlenci mantığı için harika bir seçim!
+    // Classroom.java dosyasındaki ilgili kısım
     @ManyToOne
-    @JoinColumn(name = "teacher_id") // Veritabanında daha temiz görünmesi için sütun adını belirledik
+    @JoinColumn(name = "teacher_id") // 🚀 Öğretmen silindiğinde sınıfın öğretmeni boşalır, sınıf silinmez
     private Teacher homeroomTeacher;
 
-    @OneToMany(fetch = FetchType.EAGER)
-    private List<Student> students = new ArrayList<>();
+    // Öğrenciler kısmını da şu şekilde güncelle (Sınıf silinirse öğrencilerin sınıf bilgisi temizlenir)
+    @OneToMany(mappedBy = "classroom", cascade = CascadeType.REMOVE)
+    private List<Student> students;
 
     @OneToMany
     private List<Announcement> announcements = new ArrayList<>();

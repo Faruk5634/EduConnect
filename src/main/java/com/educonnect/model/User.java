@@ -33,6 +33,13 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Role role;
 
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Student student;
+
+    // Kullanıcı silinirse, bağlı olduğu öğretmen profili de otomatik silinsin
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Teacher teacher;
+
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

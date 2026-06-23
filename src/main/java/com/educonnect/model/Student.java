@@ -39,6 +39,10 @@ public class Student {
     @JoinColumn(name = "parent_id") // Veritabanında "parent_id" adında bir sütun oluşturur ve bu sütun Parent tablosundaki id'ye referans verir.
     private Parent parent;
 
+    @ManyToOne
+    @JoinColumn(name = "classroom_id")
+    private Classroom classroom;
+
 
 
     public Student(Long id, String firstName, String lastName, String schoolNumber) {
@@ -95,4 +99,8 @@ public class Student {
     public void setUser(User user) {
         this.user = user;
     }
+
+    public Classroom getClassroom() { return classroom; }
+
+    public void setClassroom(Classroom classroom) { this.classroom = classroom; }
 }

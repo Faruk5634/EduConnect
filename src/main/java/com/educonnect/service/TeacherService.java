@@ -2,6 +2,7 @@ package com.educonnect.service;
 import com.educonnect.dto.TeacherDTO;
 import com.educonnect.model.Classroom;
 import com.educonnect.model.Teacher;
+import com.educonnect.repository.ClassroomRepository;
 import com.educonnect.repository.TeacherRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.*;
@@ -11,9 +12,11 @@ import java.util.List;
 @Service
 public class TeacherService {
     private final TeacherRepository teacherRepository;
+    private final ClassroomRepository classroomRepository;
 
-    public TeacherService(TeacherRepository teacherRepository) {
+    public TeacherService(TeacherRepository teacherRepository, ClassroomRepository classroomRepository) {
         this.teacherRepository = teacherRepository;
+        this.classroomRepository = classroomRepository;
     }
 
     public Teacher createTeacher(Teacher teacher) {
@@ -56,6 +59,32 @@ public class TeacherService {
                 .orElseThrow(() -> new RuntimeException("Eyvah! Bu kullanıcıya ait bir öğretmen profili bulunamadı."));
 
         return convertToDTO(teacher);
+    }
+
+    public void deleteTeacher(Long id) {
+        Teacher teacher = teacherRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Öğretmen bulunamadı!"));
+
+        // 1. Bu öğretmen bir sınıfın rehberiyse, önce o sınıftaki rehberini boşalt (Null yap)
+        List<Classroom> classrooms = classroomRepository.findByHomeroomTeacher(teacher);
+        for (Classroom cls : classrooms) {
+            cls.setHomeroomTeacher(null);
+            classroomRepository.save(cls);
+        }
+
+        // 2. Şimdi güvenle silebilirsin
+        teacherRepository.delete(teacher);
+    }
+
+    public void updateTeacher(Long id, Teacher updatedTeacher) {
+        Teacher existingTeacher = teacherRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Öğretmen bulunamadı!"));
+
+        existingTeacher.setFirstName(updatedTeacher.getFirstName());
+        existingTeacher.setLastName(updatedTeacher.getLastName());
+        existingTeacher.setBranch(updatedTeacher.getBranch());
+
+        teacherRepository.save(existingTeacher);
     }
 
 

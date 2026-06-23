@@ -8,5 +8,9 @@ public class CreateStudentRequest {
     private String password;
     private String schoolNumber;
     private String grade;
+
+    private String firstName;
+    private String lastName;
+    private Long parentId;
 }
 

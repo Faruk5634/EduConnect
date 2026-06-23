@@ -2,26 +2,66 @@ package com.educonnect.service;
 
 import com.educonnect.dto.StudentDTO;
 import com.educonnect.model.Parent;
+import com.educonnect.model.Role;
 import com.educonnect.model.Student;
 import com.educonnect.repository.ParentRepository;
 import com.educonnect.repository.StudentRepository;
+import com.educonnect.repository.UserRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import com.educonnect.dto.CreateStudentRequest;
+import org.springframework.web.server.ResponseStatusException;
+import lombok.RequiredArgsConstructor;
+import com.educonnect.model.User;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class StudentService {
 
     private final StudentRepository studentRepository;
     private final ParentRepository parentRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public StudentService(StudentRepository studentRepository, ParentRepository parentRepository) {
-        this.studentRepository = studentRepository;
-        this.parentRepository = parentRepository;
+    public String createStudentWithUser(CreateStudentRequest request) {
+        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu kullanıcı adı zaten alınmış!");
+        }
+
+        // 1. Yeni Kullanıcıyı oluştur
+        User user = User.builder()
+                .username(request.getUsername())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role(Role.ROLE_STUDENT)
+                .build();
+        User savedUser = userRepository.save(user);
+
+        // 2. Veli (Parent) Ataması
+        com.educonnect.model.Parent parent = null;
+        if (request.getParentId() != null) {
+            parent = new com.educonnect.model.Parent();
+            parent.setId(request.getParentId());
+        }
+
+        // 3. Öğrenciyi kaydet
+        Student student = Student.builder()
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .schoolNumber(request.getSchoolNumber())
+                .grade(request.getGrade())
+                .user(savedUser)
+                .parent(parent)
+                .build();
+        studentRepository.save(student);
+
+        return "Öğrenci başarıyla eklendi";
     }
 
     public Student createStudent(Student student) {
@@ -58,15 +98,17 @@ public class StudentService {
                 .collect(Collectors.toList());
     }
 
-    // 🚀 GÜNCELLENEN AŞÇI YAMAĞI
     private StudentDTO convertToDTO(Student student) {
         String parentName = (student.getParent() != null)
                 ? student.getParent().getFirstName() + " " + student.getParent().getLastName()
                 : "Veli Atanmadı";
 
-        // 🚀 YENİ: Velinin ID'sini güvenli bir şekilde alıyoruz
         Long parentId = (student.getParent() != null)
                 ? student.getParent().getId()
+                : null;
+
+        String username = (student.getUser() != null)
+                ? student.getUser().getUsername()
                 : null;
 
         return new StudentDTO(
@@ -75,7 +117,9 @@ public class StudentService {
                 student.getLastName(),
                 student.getSchoolNumber(),
                 parentName,
-                parentId // 🚀 YENİ: Constructor'a ID'yi de gönderdik
+                parentId,
+                username,
+                student.getGrade()
         );
     }
 
@@ -89,14 +133,26 @@ public class StudentService {
         studentRepository.deleteById(id);
     }
 
-    public void updateStudent(Long id, Student updatedStudent) {
+    public void updateStudent(Long id, CreateStudentRequest request) {
         Student existingStudent = studentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Öğrenci bulunamadı!"));
 
-        existingStudent.setSchoolNumber(updatedStudent.getSchoolNumber());
-        existingStudent.setFirstName(updatedStudent.getFirstName());
-        existingStudent.setLastName(updatedStudent.getLastName());
-        existingStudent.setParent(updatedStudent.getParent());
+        existingStudent.setSchoolNumber(request.getSchoolNumber());
+        existingStudent.setFirstName(request.getFirstName());
+        existingStudent.setLastName(request.getLastName());
+        existingStudent.setGrade(request.getGrade());
+
+        if (request.getParentId() != null) {
+            Parent parent = parentRepository.findById(request.getParentId())
+                    .orElseThrow(() -> new RuntimeException("Veli bulunamadı!"));
+            existingStudent.setParent(parent);
+        } else {
+            existingStudent.setParent(null);
+        }
+
+        if (existingStudent.getUser() != null && request.getUsername() != null && !request.getUsername().isEmpty()) {
+            existingStudent.getUser().setUsername(request.getUsername());
+        }
 
         studentRepository.save(existingStudent);
     }

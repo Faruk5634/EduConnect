@@ -43,4 +43,18 @@ public class ParentService {
             );
         }).collect(Collectors.toList());
     }
+
+    public void deleteParent(Long id) {
+        parentRepository.deleteById(id);
+    }
+
+    public void updateParent(Long id, com.educonnect.model.Parent updatedParent) {
+        com.educonnect.model.Parent existing = parentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Veli bulunamadı!"));
+
+        existing.setFirstName(updatedParent.getFirstName());
+        existing.setLastName(updatedParent.getLastName());
+
+        parentRepository.save(existing);
+    }
 }

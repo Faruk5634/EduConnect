@@ -42,4 +42,16 @@
             // Biletin üstündeki ismi (username) bize doğrudan verir.
             return teacherService.getTeacherProfileByUsername(principal.getName());
         }
+
+        @DeleteMapping("/{id}")
+        public org.springframework.http.ResponseEntity<Void> deleteTeacher(@PathVariable Long id) {
+            teacherService.deleteTeacher(id);
+            return org.springframework.http.ResponseEntity.noContent().build();
+        }
+
+        @PutMapping("/{id}")
+        public org.springframework.http.ResponseEntity<?> updateTeacher(@PathVariable Long id, @RequestBody Teacher updatedTeacher) {
+            teacherService.updateTeacher(id, updatedTeacher);
+            return org.springframework.http.ResponseEntity.ok().build();
+        }
     }

@@ -15,18 +15,16 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     // Ne zaman bir RuntimeException fırlatılsa bu metot devreye girer
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex) {
-
-        // Şık bir JSON formatı oluşturmak için Map kullanıyoruz
+    // SADECE bizim bilerek fırlattığımız "Bulunamadı" hataları 404 dönsün
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFoundException(IllegalArgumentException ex) {
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("zaman", LocalDateTime.now());
-        errorResponse.put("mesaj", ex.getMessage()); // Bizim serviste yazdığımız "Öğrenci bulunamadı!" mesajı
-        errorResponse.put("durumKodu", HttpStatus.NOT_FOUND.value()); // 404 Kodu
-
-        // Bu şık paketi Postman'e geri gönderiyoruz
+        errorResponse.put("mesaj", ex.getMessage());
+        errorResponse.put("durumKodu", HttpStatus.NOT_FOUND.value());
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
     }
+    // Geri kalan tüm RuntimeException'lar zaten aşağıdaki Exception.class (500) yakalayıcısına düşüp gerçek hatayı gösterecek.
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {

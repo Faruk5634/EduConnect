@@ -28,6 +28,16 @@ public class ParentController {
         return parentService.getAllParents();
     }
 
+    @DeleteMapping("/{id}")
+    public org.springframework.http.ResponseEntity<Void> deleteParent(@PathVariable Long id) {
+        parentService.deleteParent(id);
+        return org.springframework.http.ResponseEntity.noContent().build();
+    }
 
+    @PutMapping("/{id}")
+    public org.springframework.http.ResponseEntity<?> updateParent(@PathVariable Long id, @RequestBody com.educonnect.model.Parent parent) {
+        parentService.updateParent(id, parent);
+        return org.springframework.http.ResponseEntity.ok().build();
+    }
 
 }
