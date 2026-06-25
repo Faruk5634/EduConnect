@@ -1,11 +1,15 @@
 package com.educonnect.service;
+
 import com.educonnect.dto.TeacherDTO;
 import com.educonnect.model.Classroom;
+import com.educonnect.model.Role;
 import com.educonnect.model.Teacher;
+import com.educonnect.model.User;
 import com.educonnect.repository.ClassroomRepository;
 import com.educonnect.repository.TeacherRepository;
+import com.educonnect.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -13,12 +17,52 @@ import java.util.List;
 public class TeacherService {
     private final TeacherRepository teacherRepository;
     private final ClassroomRepository classroomRepository;
+    // 🚀 Yeni Bağımlılıklar Eklendi
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public TeacherService(TeacherRepository teacherRepository, ClassroomRepository classroomRepository) {
+    // Constructor güncellendi
+    public TeacherService(TeacherRepository teacherRepository,
+                          ClassroomRepository classroomRepository,
+                          UserRepository userRepository,
+                          PasswordEncoder passwordEncoder) {
         this.teacherRepository = teacherRepository;
         this.classroomRepository = classroomRepository;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
+    // 🚀 SİHİRLİ DOKUNUŞ: Öğretmen Eklerken Otomatik User Hesabı Açma
+    public Teacher createTeacherWithUser(Teacher teacher) {
+        // Standart Öğretmen Kullanıcı Adı: "isim.soyisim" (Örn: gokmen.deniz)
+        String generatedUsername = (teacher.getFirstName() + "." + teacher.getLastName())
+                .toLowerCase()
+                .replace("ş", "s").replace("ı", "i").replace("ğ", "g")
+                .replace("ö", "o").replace("ç", "c").replace("ü", "u")
+                .replace(" ", ""); // Eğer iki ismi varsa boşlukları sil
+
+        // Aynı isimde biri varsa basit bir mantıkla sonuna 1 ekle
+        if (userRepository.findByUsername(generatedUsername).isPresent()) {
+            generatedUsername = generatedUsername + "1";
+        }
+
+        // 1. Yeni Öğretmen Kullanıcısını Oluştur (Standart Şifre: 123456)
+        User user = User.builder()
+                .username(generatedUsername)
+                .password(passwordEncoder.encode("123456"))
+                .role(Role.ROLE_TEACHER)
+                .build();
+
+        User savedUser = userRepository.save(user);
+
+        // 2. Oluşan hesabı öğretmene bağla
+        teacher.setUser(savedUser);
+
+        // 3. Öğretmeni kaydet
+        return teacherRepository.save(teacher);
+    }
+
+    // Eski create metodu (geriye dönük uyumluluk için bozulmadı)
     public Teacher createTeacher(Teacher teacher) {
         return teacherRepository.save(teacher);
     }
@@ -86,6 +130,4 @@ public class TeacherService {
 
         teacherRepository.save(existingTeacher);
     }
-
-
 }

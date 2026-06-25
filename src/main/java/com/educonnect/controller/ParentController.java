@@ -18,9 +18,10 @@ public class ParentController {
         this.parentService = parentService;
     }
 
+    // 🚀 SİHİRLİ DOKUNUŞ: Artık veliyi kaydederken arkada User hesabını açan metodu tetikliyoruz.
     @PostMapping
     public Parent createParent(@Valid @RequestBody Parent parent) {
-        return parentService.createParent(parent);
+        return parentService.createParentWithUser(parent);
     }
 
     @GetMapping
@@ -40,4 +41,8 @@ public class ParentController {
         return org.springframework.http.ResponseEntity.ok().build();
     }
 
+    @GetMapping("/me")
+    public ParentDTO getMyProfile(java.security.Principal principal) {
+        return parentService.getParentProfileByUsername(principal.getName());
+    }
 }

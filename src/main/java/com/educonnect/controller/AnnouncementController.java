@@ -45,4 +45,18 @@ public class AnnouncementController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime date) {
         return announcementService.getAnnouncementsAfter(date);
     }
+
+    // JSON yerine Dosya ve Metin kabul eden yeni formatımız!
+    @PostMapping(value = "/create", consumes = {"multipart/form-data"})
+    public Announcement createAnnouncement(
+            @RequestParam("title") String title,
+            @RequestParam("content") String content,
+            @RequestParam("type") AnnouncementType type,
+            @RequestParam(value = "classroomId", required = false) Long classroomId,
+            @RequestParam(value = "file", required = false) org.springframework.web.multipart.MultipartFile file,
+            Principal principal) {
+
+        return announcementService.createAnnouncementWithFile(title, content, type, classroomId, file, principal.getName());
+    }
+
 }

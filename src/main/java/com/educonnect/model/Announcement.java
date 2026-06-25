@@ -24,6 +24,11 @@ public class Announcement {
     @JoinColumn(name = "classroom_id")
     private Classroom classroom;
 
+
+    private String fileName;
+    private String fileUrl;
+
+
     public Announcement(Long id, String title, String content, LocalDateTime createdDate, Teacher author, AnnouncementType type,Classroom classroom) {
         this.id = id;
         this.title = title;
@@ -89,6 +94,12 @@ public class Announcement {
     public Classroom getClassroom() { return classroom; }
 
     public void setClassroom(Classroom classroom) { this.classroom = classroom; }
+
+    public String getFileName() { return fileName; }
+    public void setFileName(String fileName) { this.fileName = fileName; }
+    public String getFileUrl() { return fileUrl; }
+    public void setFileUrl(String fileUrl) { this.fileUrl = fileUrl; }
+
 }
 
 

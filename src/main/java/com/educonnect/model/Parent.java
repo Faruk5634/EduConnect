@@ -31,6 +31,10 @@ public class Parent {
     @JsonIgnore
     private List<Student> students;
 
+    @OneToOne
+    @JoinColumn(name = "user_id", referencedColumnName = "id")
+    private User user;
+
     public Parent(Long id, String firstName, String lastName, String email, String phoneNumber, List<Student> students) {
         this.id = id;
         this.firstName = firstName;
@@ -56,4 +60,6 @@ public class Parent {
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
     public List<Student> getStudents() { return students; }
     public void setStudents(List<Student> students) { this.students = students; }
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
 }

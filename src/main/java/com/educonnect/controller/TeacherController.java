@@ -1,57 +1,52 @@
-    package com.educonnect.controller;
+package com.educonnect.controller;
 
-    import com.educonnect.dto.TeacherDTO;
-    import com.educonnect.model.Teacher;
-    import com.educonnect.service.TeacherService;
-    import org.springframework.web.bind.annotation.*;
-    import java.security.Principal;
+import com.educonnect.dto.TeacherDTO;
+import com.educonnect.model.Teacher;
+import com.educonnect.service.TeacherService;
+import org.springframework.web.bind.annotation.*;
+import java.security.Principal;
+import java.util.List;
 
-    import java.util.List;
+@RestController
+@RequestMapping("/api/teachers")
+public class TeacherController {
 
-    @RestController
-    @RequestMapping("/api/teachers")
-    public class TeacherController {
+    private final TeacherService teacherService;
 
-        private final TeacherService teacherService;
-
-        public TeacherController(TeacherService teacherService) {
-           this.teacherService=teacherService;
-        }
-
-        // Yeni Öğretmen Kaydı (POST)
-        @PostMapping
-        public Teacher createTeacher(@RequestBody Teacher teacher) {
-            return teacherService.createTeacher(teacher);
-        }
-
-        // Tüm Öğretmenleri Listeleme (GET)
-        @GetMapping
-        public List<TeacherDTO> getAllTeachers() {
-            return teacherService.getAllTeachers();
-        }
-
-        // YENİ KÖPRÜ: Arama motoru -> http://localhost:8080/api/teachers/search?branch=Matematik
-        @GetMapping("/search")
-        public List<TeacherDTO> searchTeachers(@RequestParam String branch) {
-            return teacherService.searchTeachersByBranch(branch);
-        }
-
-        @GetMapping("/me")
-        public TeacherDTO getMyProfile(Principal principal) {
-            // Principal, Spring Security'nin kapıdaki muhafızıdır.
-            // Biletin üstündeki ismi (username) bize doğrudan verir.
-            return teacherService.getTeacherProfileByUsername(principal.getName());
-        }
-
-        @DeleteMapping("/{id}")
-        public org.springframework.http.ResponseEntity<Void> deleteTeacher(@PathVariable Long id) {
-            teacherService.deleteTeacher(id);
-            return org.springframework.http.ResponseEntity.noContent().build();
-        }
-
-        @PutMapping("/{id}")
-        public org.springframework.http.ResponseEntity<?> updateTeacher(@PathVariable Long id, @RequestBody Teacher updatedTeacher) {
-            teacherService.updateTeacher(id, updatedTeacher);
-            return org.springframework.http.ResponseEntity.ok().build();
-        }
+    public TeacherController(TeacherService teacherService) {
+        this.teacherService=teacherService;
     }
+
+    // 🚀 SİHİRLİ DOKUNUŞ: Artık öğretmeni kaydederken arkada User hesabını da açacak motora bağladık!
+    @PostMapping
+    public Teacher createTeacher(@RequestBody Teacher teacher) {
+        return teacherService.createTeacherWithUser(teacher);
+    }
+
+    @GetMapping
+    public List<TeacherDTO> getAllTeachers() {
+        return teacherService.getAllTeachers();
+    }
+
+    @GetMapping("/search")
+    public List<TeacherDTO> searchTeachers(@RequestParam String branch) {
+        return teacherService.searchTeachersByBranch(branch);
+    }
+
+    @GetMapping("/me")
+    public TeacherDTO getMyProfile(Principal principal) {
+        return teacherService.getTeacherProfileByUsername(principal.getName());
+    }
+
+    @DeleteMapping("/{id}")
+    public org.springframework.http.ResponseEntity<Void> deleteTeacher(@PathVariable Long id) {
+        teacherService.deleteTeacher(id);
+        return org.springframework.http.ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}")
+    public org.springframework.http.ResponseEntity<?> updateTeacher(@PathVariable Long id, @RequestBody Teacher updatedTeacher) {
+        teacherService.updateTeacher(id, updatedTeacher);
+        return org.springframework.http.ResponseEntity.ok().build();
+    }
+}

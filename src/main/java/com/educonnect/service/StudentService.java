@@ -1,9 +1,11 @@
 package com.educonnect.service;
 
 import com.educonnect.dto.StudentDTO;
+import com.educonnect.model.Classroom; // 🚀 EKLENDİ
 import com.educonnect.model.Parent;
 import com.educonnect.model.Role;
 import com.educonnect.model.Student;
+import com.educonnect.repository.ClassroomRepository; // 🚀 EKLENDİ
 import com.educonnect.repository.ParentRepository;
 import com.educonnect.repository.StudentRepository;
 import com.educonnect.repository.UserRepository;
@@ -29,6 +31,7 @@ public class StudentService {
     private final ParentRepository parentRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ClassroomRepository classroomRepository; // 🚀 YENİ BAĞLANTI EKLENDİ
 
     public String createStudentWithUser(CreateStudentRequest request) {
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
@@ -44,13 +47,19 @@ public class StudentService {
         User savedUser = userRepository.save(user);
 
         // 2. Veli (Parent) Ataması
-        com.educonnect.model.Parent parent = null;
+        Parent parent = null;
         if (request.getParentId() != null) {
-            parent = new com.educonnect.model.Parent();
+            parent = new Parent();
             parent.setId(request.getParentId());
         }
 
-        // 3. Öğrenciyi kaydet
+        // 🚀 3. SİHİRLİ DOKUNUŞ: Öğrencinin sınıf nesnesini ismine ("10-A") bakarak bul
+        Classroom classroom = null;
+        if (request.getGrade() != null && !request.getGrade().isEmpty()) {
+            classroom = classroomRepository.findByName(request.getGrade()).orElse(null);
+        }
+
+        // 4. Öğrenciyi kaydet
         Student student = Student.builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
@@ -58,6 +67,7 @@ public class StudentService {
                 .grade(request.getGrade())
                 .user(savedUser)
                 .parent(parent)
+                .classroom(classroom) // 🚀 FİZİKSEL BAĞLANTIYI KUR!
                 .build();
         studentRepository.save(student);
 
@@ -141,6 +151,14 @@ public class StudentService {
         existingStudent.setFirstName(request.getFirstName());
         existingStudent.setLastName(request.getLastName());
         existingStudent.setGrade(request.getGrade());
+
+        // 🚀 SİHİRLİ DOKUNUŞ: Öğrenci güncellenirken de sınıf bağlantısını yap
+        if (request.getGrade() != null && !request.getGrade().isEmpty()) {
+            Classroom classroom = classroomRepository.findByName(request.getGrade()).orElse(null);
+            existingStudent.setClassroom(classroom);
+        } else {
+            existingStudent.setClassroom(null);
+        }
 
         if (request.getParentId() != null) {
             Parent parent = parentRepository.findById(request.getParentId())

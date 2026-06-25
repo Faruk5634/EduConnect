@@ -17,4 +17,9 @@ public class AnnouncementDTO {
     private String authorName; // Sadece öğretmenin adı!
     private AnnouncementType type;
     private String classroomName; // Sadece sınıfın adı!
+
+    // Mevcut alanların altına ekle
+    private String fileName;
+    private String fileUrl;
+
 }
