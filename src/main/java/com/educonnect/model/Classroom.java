@@ -17,6 +17,10 @@ public class Classroom {
 
     private Integer gradeLevel;
 
+    @ManyToOne
+    @JoinColumn(name = "school_id")
+    private School school;
+
     // SİHİRLİ KÖPRÜ: Sabahçı/Öğlenci mantığı için harika bir seçim!
     // Classroom.java dosyasındaki ilgili kısım
     @ManyToOne
@@ -30,13 +34,14 @@ public class Classroom {
     @OneToMany
     private List<Announcement> announcements = new ArrayList<>();
 
-    public Classroom(Long id, String name, Integer gradeLevel, Teacher homeroomTeacher, List<Student> students, List<Announcement> announcements) {
+    public Classroom(Long id, String name, Integer gradeLevel, Teacher homeroomTeacher, List<Student> students, List<Announcement> announcements,School school) {
         this.id = id;
         this.name = name;
         this.gradeLevel = gradeLevel;
         this.homeroomTeacher = homeroomTeacher;
         this.students = students;
         this.announcements = announcements;
+        this.school=school;
     }
 
     public Classroom() {
@@ -55,4 +60,6 @@ public class Classroom {
     public void setStudents(List<Student> students) { this.students = students; }
     public List<Announcement> getAnnouncements() { return announcements; }
     public void setAnnouncements(List<Announcement> announcements) { this.announcements = announcements; }
+    public School getSchool() { return school; }
+    public void setSchool(School school) { this.school = school; }
 }

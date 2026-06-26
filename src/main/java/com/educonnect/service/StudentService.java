@@ -174,4 +174,22 @@ public class StudentService {
 
         studentRepository.save(existingStudent);
     }
+
+    public Student createProfileForExistingUser(String username, Student studentProfile) {
+        // 1. Önce bu kullanıcı adıyla kayıtlı boş (hayalet) User hesabını bul
+        User existingUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı: " + username));
+
+        // 2. Acaba bu hesabın zaten bir öğrenci profili var mı diye kontrol et (User tablosundaki bağlantıdan bakıyoruz)
+        if (existingUser.getStudent() != null) {
+            throw new RuntimeException("Bu hesabın zaten bir öğrenci profili var!");
+        }
+
+        // 3. Bulunan User hesabını, yeni gelen Student profiline bağla
+        studentProfile.setUser(existingUser);
+
+        // 4. Profili veritabanına kaydet
+        return studentRepository.save(studentProfile);
+    }
+
 }

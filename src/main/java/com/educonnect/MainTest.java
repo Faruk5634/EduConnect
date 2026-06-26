@@ -20,7 +20,7 @@ public class MainTest {
         Announcement announcement = new Announcement(1L, "Sınav", "Yarın matematik sınavı var.", LocalDateTime.now(), teacher, AnnouncementType.EXAM_INFO, null);
 
         // 4. Sınıfı yaratıyoruz ve öğrencileri/duyuruları içine atıyoruz
-        Classroom classroom = new Classroom(1L, "5A", 5, teacher, List.of(student1, student2), List.of(announcement));
+        Classroom classroom = new Classroom(1L, "5A", 5, teacher, List.of(student1, student2), List.of(announcement),null);
 
         // --- TEST ÇIKTISI ---
         System.out.println("--- " + classroom.getName() + " SINIFI BİLGİ PANELİ ---");

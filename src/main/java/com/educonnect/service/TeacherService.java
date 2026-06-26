@@ -130,4 +130,23 @@ public class TeacherService {
 
         teacherRepository.save(existingTeacher);
     }
+
+    public Teacher createProfileForExistingUser(String username, Teacher teacherProfile) {
+        // 1. Önce bu kullanıcı adıyla kayıtlı boş (hayalet) User hesabını bul
+        User existingUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı: " + username));
+
+        // 2. Acaba bu hesabın zaten bir öğretmen profili var mı diye kontrol et (Çift profil açmayı engelle)
+        if (teacherRepository.findByUserUsername(username).isPresent()) {
+            throw new RuntimeException("Bu hesabın zaten bir öğretmen profili var!");
+        }
+
+        // 3. Bulunan User hesabını, yeni gelen Teacher profiline bağla
+        teacherProfile.setUser(existingUser);
+
+        // 4. Ve profili veritabanına kaydet
+        return teacherRepository.save(teacherProfile);
+    }
+
+
 }

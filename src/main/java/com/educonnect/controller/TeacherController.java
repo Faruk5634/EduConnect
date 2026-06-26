@@ -49,4 +49,11 @@ public class TeacherController {
         teacherService.updateTeacher(id, updatedTeacher);
         return org.springframework.http.ResponseEntity.ok().build();
     }
+
+    @PostMapping("/complete-profile/{username}")
+    public Teacher completeProfile(@PathVariable String username, @RequestBody Teacher teacherProfile) {
+        return teacherService.createProfileForExistingUser(username, teacherProfile);
+    }
+
+
 }

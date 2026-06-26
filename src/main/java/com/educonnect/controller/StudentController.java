@@ -67,4 +67,9 @@ public class StudentController {
         studentService.updateStudent(id, request);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/complete-profile/{username}")
+    public Student completeProfile(@PathVariable String username, @RequestBody Student studentProfile) {
+        return studentService.createProfileForExistingUser(username, studentProfile);
+    }
 }
