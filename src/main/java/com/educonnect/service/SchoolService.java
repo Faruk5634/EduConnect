@@ -37,4 +37,17 @@ public class SchoolService {
         School school = getSchoolById(id);
         schoolRepository.delete(school);
     }
+    public School updateSchool(Long id, School updatedDetails) {
+        School existing = getSchoolById(id);
+        existing.setName(updatedDetails.getName());
+        existing.setSchoolType(updatedDetails.getSchoolType());
+        existing.setCity(updatedDetails.getCity());
+        existing.setDistrict(updatedDetails.getDistrict());
+        existing.setNeighborhood(updatedDetails.getNeighborhood());
+        existing.setPhone(updatedDetails.getPhone());
+        existing.setEmail(updatedDetails.getEmail());
+        existing.setAddress(updatedDetails.getAddress());
+        return schoolRepository.save(existing);
+    }
+
 }

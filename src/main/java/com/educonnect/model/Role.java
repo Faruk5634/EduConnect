@@ -1,9 +1,10 @@
 package com.educonnect.model;
 
 public enum Role {
-    ROLE_SUPER_ADMIN, // 🚀 YENİ: Genel Merkez (Tüm okulları ve sistemi görür)
-    ROLE_ADMIN,       // Okul İdaresi (Sadece kendi okulunun müdürüdür)
-    ROLE_TEACHER,     // Öğretmenler
-    ROLE_PARENT,      // Veliler
-    ROLE_STUDENT      // Öğrenciler
+    ROLE_SUPER_ADMIN,
+    ROLE_ADMIN,             // Okul Müdürü
+    ROLE_VICE_ADMIN,        // 🚀 YENİ: Okul Müdür Yardımcısı
+    ROLE_TEACHER,
+    ROLE_PARENT,
+    ROLE_STUDENT
 }

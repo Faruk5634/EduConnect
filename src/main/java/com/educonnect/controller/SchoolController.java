@@ -41,4 +41,10 @@ public class SchoolController {
         schoolService.deleteSchool(id);
         return ResponseEntity.noContent().build();
     }
+
+
+    @PutMapping("/{id}")
+    public ResponseEntity<School> updateSchool(@PathVariable Long id, @RequestBody School updatedSchool) {
+        return ResponseEntity.ok(schoolService.updateSchool(id, updatedSchool));
+    }
 }

@@ -25,6 +25,17 @@ public class School {
     private String address;
     private String phone;
 
+    @Column(nullable = false)
+    private String city;
+
+    @Column(nullable = false)
+    private String district;
+
+    @Column(nullable = false)
+    private String neighborhood;
+
+    private String email;
+
     // Bu okula ait olan sınıflar
     @JsonIgnore
     @OneToMany(mappedBy = "school", cascade = CascadeType.ALL)
@@ -34,4 +45,7 @@ public class School {
     @JsonIgnore
     @OneToMany(mappedBy = "school", cascade = CascadeType.ALL)
     private List<User> users;
+
+    @Column(nullable = false)
+    private String schoolType;
 }

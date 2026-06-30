@@ -46,6 +46,16 @@ public class User implements UserDetails {
     private Teacher teacher;
 
 
+    @Column(nullable = false)
+    private String firstName;
+
+    @Column(nullable = false)
+    private String lastName;
+
+    private String phone;
+    private String email;
+
+
 
 
     @Override
