@@ -46,6 +46,11 @@ public class Student {
     @JoinColumn(name = "classroom_id")
     private Classroom classroom;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "school_id")
+    @JsonIgnore
+    private School school;
+
     @NotBlank(message = "Cinsiyet boş bırakılamaz!")
     private String gender;
 
