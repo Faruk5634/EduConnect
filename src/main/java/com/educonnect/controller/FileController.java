@@ -9,6 +9,7 @@ import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/files")
+@CrossOrigin(origins = "http://localhost:5173") // 🚀 Frontend bağlantı kalkanı eklendi!
 public class FileController {
 
     private final FileStorageService fileStorageService;
@@ -17,13 +18,10 @@ public class FileController {
         this.fileStorageService = fileStorageService;
     }
 
-    // DOSYA YÜKLEME KAPISI -> http://localhost:8080/api/files/upload
     @PostMapping(value = "/upload", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
         try {
-            // Dosyayı ambar görevlisine veriyoruz, o da uploads klasörüne kaydedip bize yeni adı dönüyor
             String uniqueFileName = fileStorageService.storeFile(file);
-
             return ResponseEntity.ok("Dosya başarıyla yüklendi! Ambar kayıt adı: " + uniqueFileName);
 
         } catch (IOException e) {

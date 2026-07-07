@@ -3,6 +3,7 @@ package com.educonnect.service;
 import com.educonnect.dto.AnnouncementDTO;
 import com.educonnect.model.Announcement;
 import com.educonnect.model.AnnouncementType;
+import com.educonnect.model.User;
 import com.educonnect.repository.AnnouncementRepository;
 import org.springframework.stereotype.Service;
 import com.educonnect.repository.TeacherRepository;
@@ -26,34 +27,43 @@ public class AnnouncementService {
     private final AnnouncementRepository announcementRepository;
     private final TeacherRepository teacherRepository;
     private final ClassroomRepository classroomRepository;
+    private final UserService userService; // 🚀 EKLENDİ: Aktif kullanıcıyı ve okulunu bulmak için
 
-    public AnnouncementService(AnnouncementRepository announcementRepository, TeacherRepository teacherRepository, ClassroomRepository classroomRepository) {
+    public AnnouncementService(AnnouncementRepository announcementRepository,
+                               TeacherRepository teacherRepository,
+                               ClassroomRepository classroomRepository,
+                               UserService userService) {
         this.announcementRepository = announcementRepository;
         this.teacherRepository = teacherRepository;
-        this.classroomRepository=classroomRepository;
+        this.classroomRepository = classroomRepository;
+        this.userService = userService;
     }
 
-    // Eski metot (geriye dönük uyumluluk için burada durabilir)
     public Announcement createAnnouncement(Announcement announcement, String username) {
+        User currentUser = userService.getCurrentUser(); // 🚀 SİHİRLİ DOKUNUŞ
+
         Teacher author = teacherRepository.findByUserUsername(username).orElse(null);
         announcement.setAuthor(author);
         announcement.setCreatedDate(LocalDateTime.now());
+
+        announcement.setSchool(currentUser.getSchool()); // 🚀 DUYURUYU OKULA MÜHÜRLE
+
         return announcementRepository.save(announcement);
     }
 
-    // 🚀 YENİ: Dosyalı Duyuru Oluşturma Motoru
     public Announcement createAnnouncementWithFile(String title, String content, AnnouncementType type, Long classroomId, MultipartFile file, String username) {
+        User currentUser = userService.getCurrentUser(); // 🚀 SİHİRLİ DOKUNUŞ
+
         Announcement announcement = new Announcement();
         announcement.setTitle(title);
         announcement.setContent(content);
         announcement.setType(type);
         announcement.setCreatedDate(LocalDateTime.now());
+        announcement.setSchool(currentUser.getSchool()); // 🚀 DUYURUYU OKULA MÜHÜRLE
 
-        // Yazar Ataması
         Teacher author = teacherRepository.findByUserUsername(username).orElse(null);
         announcement.setAuthor(author);
 
-        // Sınıf Ataması
         if (classroomId != null) {
             Classroom classroom = classroomRepository.findById(classroomId).orElse(null);
             announcement.setClassroom(classroom);
@@ -62,7 +72,6 @@ public class AnnouncementService {
         // 📂 DOSYA YÜKLEME İŞLEMİ
         if (file != null && !file.isEmpty()) {
             try {
-                // Dosyaları kaydedeceğimiz ana klasör
                 String uploadDir = "uploads/announcements/";
                 Path uploadPath = Paths.get(uploadDir);
 
@@ -70,7 +79,6 @@ public class AnnouncementService {
                     Files.createDirectories(uploadPath);
                 }
 
-                // Dosya isimlerinin çakışmaması için benzersiz bir kod ekliyoruz
                 String originalFilename = file.getOriginalFilename();
                 String uniqueFilename = UUID.randomUUID().toString() + "_" + originalFilename;
                 Path filePath = uploadPath.resolve(uniqueFilename);
@@ -88,7 +96,6 @@ public class AnnouncementService {
         return announcementRepository.save(announcement);
     }
 
-    // 🚀 SİHİRLİ DÖNÜŞÜM METODU (Sadece en güncel hali bırakıldı)
     private AnnouncementDTO convertToDTO(Announcement a) {
         return new AnnouncementDTO(
                 a.getId(),
@@ -98,31 +105,37 @@ public class AnnouncementService {
                 a.getAuthor() != null ? a.getAuthor().getFirstName() + " " + a.getAuthor().getLastName() : "Yönetim (Admin)",
                 a.getType(),
                 a.getClassroom() != null ? a.getClassroom().getName() : "Genel Duyuru",
-                a.getFileName(), // 🚀 Dosya Adı
-                a.getFileUrl()   // 🚀 Dosya Linki
+                a.getFileName(),
+                a.getFileUrl()
         );
     }
 
     public List<AnnouncementDTO> getAllAnnouncements() {
-        return announcementRepository.findAll().stream()
+        User currentUser = userService.getCurrentUser();
+        // 🚀 KİLİT: Sadece bu okula ait olanları getir
+        return announcementRepository.findBySchool(currentUser.getSchool()).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     public List<AnnouncementDTO> getAnnouncementsByType(AnnouncementType type) {
-        return announcementRepository.findByType(type).stream()
+        User currentUser = userService.getCurrentUser();
+        // 🚀 KİLİT: Sadece bu okula ait olanları getir
+        return announcementRepository.findByTypeAndSchool(type, currentUser.getSchool()).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     public List<AnnouncementDTO> getAnnouncementsByAuthorId(Long authorId) {
+        // Zaten belirli bir öğretmeni aradığı için okul filtresi teknik olarak içerilmiş oluyor
         return announcementRepository.findByAuthorId(authorId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     public List<AnnouncementDTO> getAnnouncementsAfter(LocalDateTime date) {
-        return announcementRepository.findByCreatedDateAfter(date).stream()
+        User currentUser = userService.getCurrentUser();
+        return announcementRepository.findBySchoolAndCreatedDateAfter(currentUser.getSchool(), date).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }

@@ -11,6 +11,7 @@ import java.security.Principal;
 import java.util.List;
 
 @RestController
+@CrossOrigin(origins = "http://localhost:5173") // 🚀 Frontend bağlantı kalkanı eklendi
 @RequestMapping("/api/announcements")
 public class AnnouncementController {
 
@@ -46,7 +47,6 @@ public class AnnouncementController {
         return announcementService.getAnnouncementsAfter(date);
     }
 
-    // JSON yerine Dosya ve Metin kabul eden yeni formatımız!
     @PostMapping(value = "/create", consumes = {"multipart/form-data"})
     public Announcement createAnnouncement(
             @RequestParam("title") String title,
@@ -58,5 +58,4 @@ public class AnnouncementController {
 
         return announcementService.createAnnouncementWithFile(title, content, type, classroomId, file, principal.getName());
     }
-
 }

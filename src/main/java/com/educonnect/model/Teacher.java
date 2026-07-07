@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.List;
+import jakarta.persistence.FetchType;
 
 @Entity
 @Data
@@ -29,16 +30,21 @@ public class Teacher {
     @NotBlank(message = "Branş boş bırakılamaz!")
     private String branch;
 
-    // SİHİRLİ KÖPRÜ 1: Classroom'daki 'homeroomTeacher' değişkeni ile eşleşir.
-    @OneToMany(mappedBy = "homeroomTeacher")
-    @JsonIgnore // Postman sonsuz döngüye girip çökmesin diye kalkanımız
+    @OneToMany(mappedBy = "homeroomTeacher", fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Classroom> homeroomClasses;
 
-    // 🚀 YENİ SİHİRLİ KÖPRÜ 2: Güvenlik tablosu (User) ile bağlantı!
-    // Bu sayede giriş yapan kişinin hangi öğretmen olduğunu şak diye bulacağız.
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", referencedColumnName = "id")
+    @JsonIgnore
     private User user;
+
+    // 🚀 SİHİRLİ DOKUNUŞ: Frontend'den kullanıcı adı ve şifre taşıyabilmek için
+    @Transient
+    private String username;
+
+    @Transient
+    private String password;
 
     public Teacher(Long id, String firstName, String lastName, String branch, List<Classroom> homeroomClasses) {
         this.id = id;
@@ -48,8 +54,7 @@ public class Teacher {
         this.homeroomClasses = homeroomClasses;
     }
 
-
-    // --- GETTER VE SETTER METOTLARI ---
+    // --- TEMEL GETTER VE SETTER METOTLARI ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getFirstName() { return firstName; }
@@ -61,7 +66,11 @@ public class Teacher {
     public List<Classroom> getHomeroomClasses() { return homeroomClasses; }
     public void setHomeroomClasses(List<Classroom> homeroomClasses) { this.homeroomClasses = homeroomClasses; }
 
-    // 🚀 YENİ EKLENEN GETTER/SETTER
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
+
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 }

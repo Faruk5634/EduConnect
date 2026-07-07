@@ -26,14 +26,25 @@ public class Parent {
     @NotBlank(message = "Telefon numarası zorunludur!")
     private String phoneNumber;
 
-    // cascade = CascadeType.ALL geri geldi!
-    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnore
     private List<Student> students;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", referencedColumnName = "id")
+    @JsonIgnore
     private User user;
+
+    // 🚀 SİHİRLİ DOKUNUŞ: Frontend'den şifre ve kullanıcı adı alabilmek için
+    // @Transient, "Bunu veritabanına sütun olarak ekleme, sadece geçici olarak hafızada tut" demektir.
+    @Transient
+    private String username;
+
+    @Transient
+    private String password;
+
+    public Parent() {
+    }
 
     public Parent(Long id, String firstName, String lastName, String email, String phoneNumber, List<Student> students) {
         this.id = id;
@@ -44,10 +55,7 @@ public class Parent {
         this.students = students;
     }
 
-    public Parent() {
-    }
-
-    // ... (Aşağıdaki Getter ve Setter metotların aynı şekilde kalsın, onlarda sorun yok)
+    // --- GETTER VE SETTER ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getFirstName() { return firstName; }
@@ -62,4 +70,10 @@ public class Parent {
     public void setStudents(List<Student> students) { this.students = students; }
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
+
+    // 🚀 Yeni eklenenlerin Getter/Setter'ları
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 }

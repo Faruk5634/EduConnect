@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
+@CrossOrigin(origins = "http://localhost:5173") // 🚀 CORS Koruması eklendi
 @RequestMapping("/api/parents")
 public class ParentController {
 
@@ -18,7 +19,6 @@ public class ParentController {
         this.parentService = parentService;
     }
 
-    // 🚀 SİHİRLİ DOKUNUŞ: Artık veliyi kaydederken arkada User hesabını açan metodu tetikliyoruz.
     @PostMapping
     public Parent createParent(@Valid @RequestBody Parent parent) {
         return parentService.createParentWithUser(parent);
@@ -36,7 +36,7 @@ public class ParentController {
     }
 
     @PutMapping("/{id}")
-    public org.springframework.http.ResponseEntity<?> updateParent(@PathVariable Long id, @RequestBody com.educonnect.model.Parent parent) {
+    public org.springframework.http.ResponseEntity<?> updateParent(@PathVariable Long id, @RequestBody Parent parent) {
         parentService.updateParent(id, parent);
         return org.springframework.http.ResponseEntity.ok().build();
     }

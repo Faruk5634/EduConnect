@@ -1,11 +1,11 @@
 package com.educonnect.service;
 
 import com.educonnect.dto.StudentDTO;
-import com.educonnect.model.Classroom; // 🚀 EKLENDİ
+import com.educonnect.model.Classroom;
 import com.educonnect.model.Parent;
 import com.educonnect.model.Role;
 import com.educonnect.model.Student;
-import com.educonnect.repository.ClassroomRepository; // 🚀 EKLENDİ
+import com.educonnect.repository.ClassroomRepository;
 import com.educonnect.repository.ParentRepository;
 import com.educonnect.repository.StudentRepository;
 import com.educonnect.repository.UserRepository;
@@ -31,35 +31,33 @@ public class StudentService {
     private final ParentRepository parentRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ClassroomRepository classroomRepository; // 🚀 YENİ BAĞLANTI EKLENDİ
+    private final ClassroomRepository classroomRepository;
+    private final UserService userService; // 🚀 YENİ EKLENDİ: Müdürü bulmak için
 
     public String createStudentWithUser(CreateStudentRequest request) {
+        User admin = userService.getCurrentUser(); // 🚀 Giriş yapan müdürü bul
+
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu kullanıcı adı zaten alınmış!");
         }
 
-        // 1. Yeni Kullanıcıyı oluştur
-        User user = User.builder()
-                .username(request.getUsername())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.ROLE_STUDENT)
-                .build();
+        System.out.println("DEBUG: DTO'dan gelen isim: " + request.getFirstName());
+
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setRole(Role.ROLE_STUDENT);
+        user.setSchool(admin.getSchool()); // 🚀 GÜVENLİK KİLİDİ: Öğrenciyi müdürün okuluna bağla
+        user.setPhone(request.getPhone()); // 🚀 EKLENDİ
+        user.setEmail(request.getEmail()); // 🚀 EKLENDİ
+
         User savedUser = userRepository.save(user);
 
-        // 2. Veli (Parent) Ataması
-        Parent parent = null;
-        if (request.getParentId() != null) {
-            parent = new Parent();
-            parent.setId(request.getParentId());
-        }
+        Parent parent = (request.getParentId() != null) ? parentRepository.findById(request.getParentId()).orElse(null) : null;
+        Classroom classroom = (request.getGrade() != null && !request.getGrade().isEmpty()) ? classroomRepository.findByNameAndSchool(request.getGrade(), admin.getSchool()).orElse(null) : null;
 
-        // 🚀 3. SİHİRLİ DOKUNUŞ: Öğrencinin sınıf nesnesini ismine ("10-A") bakarak bul
-        Classroom classroom = null;
-        if (request.getGrade() != null && !request.getGrade().isEmpty()) {
-            classroom = classroomRepository.findByName(request.getGrade()).orElse(null);
-        }
-
-        // 4. Öğrenciyi kaydet
         Student student = Student.builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
@@ -67,10 +65,11 @@ public class StudentService {
                 .grade(request.getGrade())
                 .user(savedUser)
                 .parent(parent)
-                .classroom(classroom) // 🚀 FİZİKSEL BAĞLANTIYI KUR!
+                .classroom(classroom)
+                .gender(request.getGender() != null ? request.getGender() : "Belirtilmemiş")
                 .build();
-        studentRepository.save(student);
 
+        studentRepository.save(student);
         return "Öğrenci başarıyla eklendi";
     }
 
@@ -79,7 +78,10 @@ public class StudentService {
     }
 
     public List<StudentDTO> getAllStudents() {
-        return studentRepository.findAll()
+        User admin = userService.getCurrentUser(); // 🚀 Giriş yapan müdürü bul
+
+        // 🚀 GÜVENLİK KİLİDİ: Sadece bu müdürün okulundaki öğrencileri getir
+        return studentRepository.findByUserSchool(admin.getSchool())
                 .stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -102,6 +104,7 @@ public class StudentService {
     }
 
     public List<StudentDTO> searchStudentsByFirstName(String firstName) {
+        // Not: Eğer aramada da sadece kendi okulunu arasın istersen burayı ileride güncelleyebiliriz
         return studentRepository.findByFirstNameContainingIgnoreCase(firstName)
                 .stream()
                 .map(this::convertToDTO)
@@ -109,27 +112,18 @@ public class StudentService {
     }
 
     private StudentDTO convertToDTO(Student student) {
-        String parentName = (student.getParent() != null)
-                ? student.getParent().getFirstName() + " " + student.getParent().getLastName()
-                : "Veli Atanmadı";
+        String parentName = (student.getParent() != null) ? student.getParent().getFirstName() + " " + student.getParent().getLastName() : "Veli Atanmadı";
+        Long parentId = (student.getParent() != null) ? student.getParent().getId() : null;
+        String username = (student.getUser() != null) ? student.getUser().getUsername() : null;
 
-        Long parentId = (student.getParent() != null)
-                ? student.getParent().getId()
-                : null;
-
-        String username = (student.getUser() != null)
-                ? student.getUser().getUsername()
-                : null;
+        // 🚀 EKLENDİ
+        String phone = (student.getUser() != null) ? student.getUser().getPhone() : null;
+        String email = (student.getUser() != null) ? student.getUser().getEmail() : null;
 
         return new StudentDTO(
-                student.getId(),
-                student.getFirstName(),
-                student.getLastName(),
-                student.getSchoolNumber(),
-                parentName,
-                parentId,
-                username,
-                student.getGrade()
+                student.getId(), student.getFirstName(), student.getLastName(), student.getSchoolNumber(),
+                parentName, parentId, username, student.getGrade(), student.getGender(),
+                phone, email // 🚀 EKLENDİ
         );
     }
 
@@ -144,6 +138,9 @@ public class StudentService {
     }
 
     public void updateStudent(Long id, CreateStudentRequest request) {
+
+        User admin = userService.getCurrentUser();
+
         Student existingStudent = studentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Öğrenci bulunamadı!"));
 
@@ -152,9 +149,13 @@ public class StudentService {
         existingStudent.setLastName(request.getLastName());
         existingStudent.setGrade(request.getGrade());
 
-        // 🚀 SİHİRLİ DOKUNUŞ: Öğrenci güncellenirken de sınıf bağlantısını yap
+        // 🚀 HATA GİDERİLDİ: Cinsiyet güncellenmiyordu, eklendi!
+        if (request.getGender() != null) {
+            existingStudent.setGender(request.getGender());
+        }
+
         if (request.getGrade() != null && !request.getGrade().isEmpty()) {
-            Classroom classroom = classroomRepository.findByName(request.getGrade()).orElse(null);
+            Classroom classroom = classroomRepository.findByNameAndSchool(request.getGrade(),admin.getSchool()).orElse(null);
             existingStudent.setClassroom(classroom);
         } else {
             existingStudent.setClassroom(null);
@@ -168,28 +169,27 @@ public class StudentService {
             existingStudent.setParent(null);
         }
 
-        if (existingStudent.getUser() != null && request.getUsername() != null && !request.getUsername().isEmpty()) {
-            existingStudent.getUser().setUsername(request.getUsername());
+        if (existingStudent.getUser() != null) {
+            if (request.getUsername() != null && !request.getUsername().isEmpty()) {
+                existingStudent.getUser().setUsername(request.getUsername());
+            }
+            // 🚀 EKLENDİ: İletişim bilgilerini güncelle
+            existingStudent.getUser().setPhone(request.getPhone());
+            existingStudent.getUser().setEmail(request.getEmail());
         }
 
         studentRepository.save(existingStudent);
     }
 
     public Student createProfileForExistingUser(String username, Student studentProfile) {
-        // 1. Önce bu kullanıcı adıyla kayıtlı boş (hayalet) User hesabını bul
         User existingUser = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı: " + username));
 
-        // 2. Acaba bu hesabın zaten bir öğrenci profili var mı diye kontrol et (User tablosundaki bağlantıdan bakıyoruz)
         if (existingUser.getStudent() != null) {
             throw new RuntimeException("Bu hesabın zaten bir öğrenci profili var!");
         }
 
-        // 3. Bulunan User hesabını, yeni gelen Student profiline bağla
         studentProfile.setUser(existingUser);
-
-        // 4. Profili veritabanına kaydet
         return studentRepository.save(studentProfile);
     }
-
 }

@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.FetchType;
 
 @Entity
 @Data
@@ -31,17 +33,21 @@ public class Student {
 
     private String grade;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", referencedColumnName = "id")
     private User user;
 
-    @ManyToOne // SİHİR BURADA: Her öğrencinin sadece 1 velisi olur.
-    @JoinColumn(name = "parent_id") // Veritabanında "parent_id" adında bir sütun oluşturur ve bu sütun Parent tablosundaki id'ye referans verir.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    @JsonIgnore
     private Parent parent;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "classroom_id")
     private Classroom classroom;
+
+    @NotBlank(message = "Cinsiyet boş bırakılamaz!")
+    private String gender;
 
 
 

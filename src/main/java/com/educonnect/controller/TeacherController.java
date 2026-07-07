@@ -8,6 +8,7 @@ import java.security.Principal;
 import java.util.List;
 
 @RestController
+@CrossOrigin(origins = "http://localhost:5173") // 🚀 CORS Kalkanı eklendi
 @RequestMapping("/api/teachers")
 public class TeacherController {
 
@@ -17,7 +18,6 @@ public class TeacherController {
         this.teacherService=teacherService;
     }
 
-    // 🚀 SİHİRLİ DOKUNUŞ: Artık öğretmeni kaydederken arkada User hesabını da açacak motora bağladık!
     @PostMapping
     public Teacher createTeacher(@RequestBody Teacher teacher) {
         return teacherService.createTeacherWithUser(teacher);
@@ -54,6 +54,4 @@ public class TeacherController {
     public Teacher completeProfile(@PathVariable String username, @RequestBody Teacher teacherProfile) {
         return teacherService.createProfileForExistingUser(username, teacherProfile);
     }
-
-
 }

@@ -7,6 +7,7 @@ public class TeacherDTO {
     private String firstName;
     private String lastName;
     private String branch;
+    private String username; // 🚀 EKLENDİ
 
     public static class ClassroomInfo {
         private Long id;
@@ -22,15 +23,15 @@ public class TeacherDTO {
 
     private List<ClassroomInfo> homeroomClasses;
 
-
     public TeacherDTO() {
     }
 
-    public TeacherDTO(Long id, String firstName, String lastName, String branch, List<ClassroomInfo> homeroomClasses) {
+    public TeacherDTO(Long id, String firstName, String lastName, String branch, String username, List<ClassroomInfo> homeroomClasses) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
         this.branch = branch;
+        this.username = username; // 🚀 EKLENDİ
         this.homeroomClasses = homeroomClasses;
     }
 
@@ -43,6 +44,8 @@ public class TeacherDTO {
     public void setLastName(String lastName) { this.lastName = lastName; }
     public String getBranch() { return branch; }
     public void setBranch(String branch) { this.branch = branch; }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
     public List<ClassroomInfo> getHomeroomClasses() { return homeroomClasses; }
     public void setHomeroomClasses(List<ClassroomInfo> homeroomClasses) { this.homeroomClasses = homeroomClasses; }
 }

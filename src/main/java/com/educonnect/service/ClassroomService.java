@@ -4,11 +4,12 @@ import com.educonnect.dto.ClassroomDTO;
 import com.educonnect.model.Announcement;
 import com.educonnect.model.Classroom;
 import com.educonnect.model.Student;
-import com.educonnect.model.Teacher; // YENİ EKLENDİ
+import com.educonnect.model.Teacher;
+import com.educonnect.model.User;
 import com.educonnect.repository.AnnouncementRepository;
 import com.educonnect.repository.ClassroomRepository;
 import com.educonnect.repository.StudentRepository;
-import com.educonnect.repository.TeacherRepository; // YENİ EKLENDİ
+import com.educonnect.repository.TeacherRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,31 +20,38 @@ public class ClassroomService {
     private final ClassroomRepository classroomRepository;
     private final StudentRepository studentRepository;
     private final AnnouncementRepository announcementRepository;
-    private final TeacherRepository teacherRepository; // YENİ EKLENDİ
+    private final TeacherRepository teacherRepository;
+    private final UserService userService; // 🚀 EKLENDİ: Aktif müdürü bulmak için
 
-    // Constructor güncellendi (TeacherRepository eklendi)
     public ClassroomService(ClassroomRepository classroomRepository,
                             StudentRepository studentRepository,
                             AnnouncementRepository announcementRepository,
-                            TeacherRepository teacherRepository) {
+                            TeacherRepository teacherRepository,
+                            UserService userService) {
         this.classroomRepository = classroomRepository;
         this.studentRepository = studentRepository;
         this.announcementRepository = announcementRepository;
         this.teacherRepository = teacherRepository;
+        this.userService = userService;
     }
 
-    // Yeni Sınıf Ekleme
     public Classroom createClassroom(Classroom classroom) {
+        User admin = userService.getCurrentUser(); // 🚀 Giriş yapan müdürü bul
+
+        classroom.setSchool(admin.getSchool()); // 🚀 GÜVENLİK KİLİDİ: Sınıfı müdürün okuluna mühürle!
+
         return classroomRepository.save(classroom);
     }
 
     public List<ClassroomDTO> getAllClassrooms() {
-        return classroomRepository.findAll().stream()
+        User admin = userService.getCurrentUser(); // 🚀 Giriş yapan müdürü bul
+
+        // 🚀 GÜVENLİK KİLİDİ: Sadece bu okula ait sınıfları listele!
+        return classroomRepository.findBySchool(admin.getSchool()).stream()
                 .map(this::convertToDTO)
                 .collect(java.util.stream.Collectors.toList());
     }
 
-    // Sınıfa Öğrenci Ekleme İş Mantığı
     public Classroom addStudentToClass(Long classId, Long studentId) {
         Classroom classroom = classroomRepository.findById(classId)
                 .orElseThrow(() -> new RuntimeException("Sınıf bulunamadı"));
@@ -55,7 +63,6 @@ public class ClassroomService {
         return classroomRepository.save(classroom);
     }
 
-    // Sınıfa Duyuru Asma İş Mantığı
     public Classroom addAnnouncementToClass(Long classId, Long announcementId) {
         Classroom classroom = classroomRepository.findById(classId)
                 .orElseThrow(() -> new RuntimeException("Sınıf bulunamadı"));
@@ -67,7 +74,6 @@ public class ClassroomService {
         return classroomRepository.save(classroom);
     }
 
-    // YENİ SİHİRLİ METODUMUZ: Sınıfa Rehber Öğretmen Atama
     public Classroom assignTeacherToClassroom(Long classId, Long teacherId) {
         Classroom classroom = classroomRepository.findById(classId)
                 .orElseThrow(() -> new RuntimeException("Sınıf bulunamadı!"));
@@ -101,22 +107,18 @@ public class ClassroomService {
         Classroom classroom = classroomRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Sınıf bulunamadı!"));
 
-        // 1. Sınıfın rehber öğretmeni ile bağı kopar
         classroom.setHomeroomTeacher(null);
         classroomRepository.save(classroom);
 
-        // 2. Sınıfa kayıtlı öğrencilerin sınıf bilgisini null yap
         List<Student> students = studentRepository.findByClassroom(classroom);
         for (Student s : students) {
             s.setClassroom(null);
             studentRepository.save(s);
         }
 
-        // 3. Artık silebilirsin
         classroomRepository.delete(classroom);
     }
 
-    // Hem sınıf bilgilerini hem de rehber öğretmeni aynı anda güncelleyen metodumuz
     public void updateClassroom(Long id, Classroom updatedClassroom, Long teacherId) {
         Classroom existing = classroomRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Sınıf bulunamadı!"));
@@ -129,10 +131,9 @@ public class ClassroomService {
                     .orElseThrow(() -> new RuntimeException("Öğretmen bulunamadı!"));
             existing.setHomeroomTeacher(teacher);
         } else {
-            existing.setHomeroomTeacher(null); // Öğretmen seçilmemişse temizle
+            existing.setHomeroomTeacher(null);
         }
 
         classroomRepository.save(existing);
     }
-
 }

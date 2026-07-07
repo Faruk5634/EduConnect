@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.FetchType;
 
 @Entity
 public class Classroom {
@@ -17,21 +19,23 @@ public class Classroom {
 
     private Integer gradeLevel;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "school_id")
     private School school;
 
     // SİHİRLİ KÖPRÜ: Sabahçı/Öğlenci mantığı için harika bir seçim!
     // Classroom.java dosyasındaki ilgili kısım
-    @ManyToOne
-    @JoinColumn(name = "teacher_id") // 🚀 Öğretmen silindiğinde sınıfın öğretmeni boşalır, sınıf silinmez
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "teacher_id")
     private Teacher homeroomTeacher;
 
     // Öğrenciler kısmını da şu şekilde güncelle (Sınıf silinirse öğrencilerin sınıf bilgisi temizlenir)
-    @OneToMany(mappedBy = "classroom", cascade = CascadeType.REMOVE)
+    @OneToMany(mappedBy = "classroom", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Student> students;
 
     @OneToMany
+    @JsonIgnore
     private List<Announcement> announcements = new ArrayList<>();
 
     public Classroom(Long id, String name, Integer gradeLevel, Teacher homeroomTeacher, List<Student> students, List<Announcement> announcements,School school) {
