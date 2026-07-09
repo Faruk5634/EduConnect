@@ -10,16 +10,19 @@ import com.educonnect.repository.TeacherRepository;
 import com.educonnect.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class TeacherService {
     private final TeacherRepository teacherRepository;
     private final ClassroomRepository classroomRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final UserService userService; // 🚀 EKLENDİ: Müdürü bulmak için
+    private final UserService userService;
 
     public TeacherService(TeacherRepository teacherRepository,
                           ClassroomRepository classroomRepository,
@@ -34,10 +37,10 @@ public class TeacherService {
     }
 
     public Teacher createTeacherWithUser(Teacher teacher) {
-        User admin = userService.getCurrentUser(); // 🚀 Giriş yapan müdürü bul
+        User admin = userService.getCurrentUser();
 
         String generatedUsername = teacher.getUsername();
-        if (generatedUsername == null || generatedUsername.isEmpty()) {
+        if (generatedUsername == null || generatedUsername.trim().isEmpty()) {
             generatedUsername = (teacher.getFirstName() + "." + teacher.getLastName())
                     .toLowerCase()
                     .replace("ş", "s").replace("ı", "i").replace("ğ", "g")
@@ -47,11 +50,11 @@ public class TeacherService {
             if (userRepository.findByUsername(generatedUsername).isPresent()) {
                 generatedUsername = generatedUsername + "1";
             }
-        } else if (userRepository.findByUsername(generatedUsername).isPresent()) {
-            throw new RuntimeException("Bu kullanıcı adı zaten alınmış!");
-        }
+            } else if (userRepository.findByUsername(generatedUsername).isPresent()) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Bu kullanıcı adı zaten alınmış!");
+            }
 
-        String password = (teacher.getPassword() != null && !teacher.getPassword().isEmpty())
+        String password = (teacher.getPassword() != null && !teacher.getPassword().trim().isEmpty())
                 ? teacher.getPassword() : "123456";
 
         User user = User.builder()
@@ -60,7 +63,9 @@ public class TeacherService {
                 .role(Role.ROLE_TEACHER)
                 .firstName(teacher.getFirstName())
                 .lastName(teacher.getLastName())
-                .school(admin.getSchool()) // 🚀 GÜVENLİK KİLİDİ: Öğretmeni müdürün okuluna bağla
+                .phone(teacher.getPhone()) // 🚀 VERİTABANINA YAZILDI
+                .email(teacher.getEmail()) // 🚀 VERİTABANINA YAZILDI
+                .school(admin.getSchool())
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -74,51 +79,60 @@ public class TeacherService {
     }
 
     public List<TeacherDTO> getAllTeachers() {
-        User admin = userService.getCurrentUser(); // 🚀 Müdürü bul
-
-        // 🚀 GÜVENLİK KİLİDİ: Sadece bu okula ait öğretmenleri çek
+        User admin = userService.getCurrentUser();
         return teacherRepository.findByUserSchool(admin.getSchool()).stream()
                 .map(this::convertToDTO)
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
     }
 
     private TeacherDTO convertToDTO(Teacher teacher) {
+        // İlişki karmaşasını (sonsuz döngüyü) engellemek için sadece String değerleri alıyoruz
         List<TeacherDTO.ClassroomInfo> classInfos = teacher.getHomeroomClasses() != null
                 ? teacher.getHomeroomClasses().stream()
                   .map(c -> new TeacherDTO.ClassroomInfo(c.getId(), c.getName()))
-                  .collect(java.util.stream.Collectors.toList())
+                  .collect(Collectors.toList())
                 : List.of();
 
-        String username = teacher.getUser() != null ? teacher.getUser().getUsername() : null;
+        // 🚀 GÜVENLİ ERİŞİM: User nesnesinin içine gömülmek yerine değerleri "dışarıdan" kontrol ederek al
+        String username = null;
+        String phone = null;
+        String email = null;
+
+        if (teacher.getUser() != null) {
+            username = teacher.getUser().getUsername();
+            phone = teacher.getUser().getPhone();
+            email = teacher.getUser().getEmail();
+        }
 
         return new TeacherDTO(
                 teacher.getId(),
                 teacher.getFirstName(),
                 teacher.getLastName(),
                 teacher.getBranch(),
-                username, // 🚀 Kullanıcı adı DTO'ya eklendi
+                username,
+                phone,
+                email,
                 classInfos
         );
     }
 
     public List<TeacherDTO> searchTeachersByBranch(String branch) {
-        // İleride buraya da okul bazlı arama filtresi eklenebilir
         return teacherRepository.findByBranchContainingIgnoreCase(branch)
                 .stream()
                 .map(this::convertToDTO)
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
     }
 
     public TeacherDTO getTeacherProfileByUsername(String username) {
         Teacher teacher = teacherRepository.findByUserUsername(username)
-                .orElseThrow(() -> new RuntimeException("Eyvah! Bu kullanıcıya ait bir öğretmen profili bulunamadı."));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Bu kullanıcıya ait öğretmen profili bulunamadı."));
 
         return convertToDTO(teacher);
     }
 
     public void deleteTeacher(Long id) {
         Teacher teacher = teacherRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Öğretmen bulunamadı!"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Öğretmen bulunamadı!"));
 
         List<Classroom> classrooms = classroomRepository.findByHomeroomTeacher(teacher);
         for (Classroom cls : classrooms) {
@@ -131,23 +145,28 @@ public class TeacherService {
 
     public void updateTeacher(Long id, Teacher updatedTeacher) {
         Teacher existingTeacher = teacherRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Öğretmen bulunamadı!"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Öğretmen bulunamadı!"));
 
         existingTeacher.setFirstName(updatedTeacher.getFirstName());
         existingTeacher.setLastName(updatedTeacher.getLastName());
         existingTeacher.setBranch(updatedTeacher.getBranch());
 
-        // 🚀 HESAP GÜNCELLEMELERİ
         if (existingTeacher.getUser() != null) {
-            existingTeacher.getUser().setFirstName(updatedTeacher.getFirstName());
-            existingTeacher.getUser().setLastName(updatedTeacher.getLastName());
+            User user = existingTeacher.getUser();
+            user.setFirstName(updatedTeacher.getFirstName());
+            user.setLastName(updatedTeacher.getLastName());
 
-            if (updatedTeacher.getUsername() != null && !updatedTeacher.getUsername().isEmpty()) {
-                existingTeacher.getUser().setUsername(updatedTeacher.getUsername());
+            if (updatedTeacher.getUsername() != null && !updatedTeacher.getUsername().trim().isEmpty()) {
+                user.setUsername(updatedTeacher.getUsername());
             }
-            if (updatedTeacher.getPassword() != null && !updatedTeacher.getPassword().isEmpty()) {
-                existingTeacher.getUser().setPassword(passwordEncoder.encode(updatedTeacher.getPassword()));
+            if (updatedTeacher.getPassword() != null && !updatedTeacher.getPassword().trim().isEmpty()) {
+                user.setPassword(passwordEncoder.encode(updatedTeacher.getPassword()));
             }
+
+            user.setPhone(updatedTeacher.getPhone()); // 🚀 GÜNCELLENDİ
+            user.setEmail(updatedTeacher.getEmail()); // 🚀 GÜNCELLENDİ
+
+            userRepository.save(user);
         }
 
         teacherRepository.save(existingTeacher);
@@ -155,10 +174,10 @@ public class TeacherService {
 
     public Teacher createProfileForExistingUser(String username, Teacher teacherProfile) {
         User existingUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı: " + username));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Kullanıcı bulunamadı: " + username));
 
         if (teacherRepository.findByUserUsername(username).isPresent()) {
-            throw new RuntimeException("Bu hesabın zaten bir öğretmen profili var!");
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Bu hesabın zaten bir öğretmen profili var!");
         }
 
         teacherProfile.setUser(existingUser);

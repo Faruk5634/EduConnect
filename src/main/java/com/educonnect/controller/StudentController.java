@@ -12,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173")
 @RequestMapping("/api/students")
 @RequiredArgsConstructor
 public class StudentController {

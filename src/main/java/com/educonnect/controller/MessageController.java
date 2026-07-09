@@ -45,13 +45,13 @@ public class MessageController {
         else if ("SUPER_ADMIN".equals(request.getReceiverId())) {
             User superAdmin = userRepository.findAll().stream()
                     .filter(u -> u.getRole() == Role.ROLE_SUPER_ADMIN)
-                    .findFirst().orElseThrow(() -> new RuntimeException("Super Admin bulunamadı!"));
+                    .findFirst().orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Super Admin bulunamadı!"));
             saveMessage(sender, superAdmin, request.getSubject(), request.getContent());
         }
         // 3. Kime: BELİRLİ BİR KİŞİYE
         else {
             User receiver = userRepository.findById(Long.parseLong(request.getReceiverId()))
-                    .orElseThrow(() -> new RuntimeException("Alıcı bulunamadı!"));
+                    .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Alıcı bulunamadı!"));
             saveMessage(sender, receiver, request.getSubject(), request.getContent());
         }
 

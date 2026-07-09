@@ -9,7 +9,6 @@ import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/files")
-@CrossOrigin(origins = "http://localhost:5173") // 🚀 Frontend bağlantı kalkanı eklendi!
 public class FileController {
 
     private final FileStorageService fileStorageService;

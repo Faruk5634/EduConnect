@@ -8,7 +8,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.List;
-import jakarta.persistence.FetchType;
 
 @Entity
 @Data
@@ -39,12 +38,17 @@ public class Teacher {
     @JsonIgnore
     private User user;
 
-    // 🚀 SİHİRLİ DOKUNUŞ: Frontend'den kullanıcı adı ve şifre taşıyabilmek için
     @Transient
     private String username;
 
     @Transient
     private String password;
+
+    @Transient
+    private String phone; // 🚀 EKLENDİ
+
+    @Transient
+    private String email; // 🚀 EKLENDİ
 
     public Teacher(Long id, String firstName, String lastName, String branch, List<Classroom> homeroomClasses) {
         this.id = id;
@@ -54,7 +58,6 @@ public class Teacher {
         this.homeroomClasses = homeroomClasses;
     }
 
-    // --- TEMEL GETTER VE SETTER METOTLARI ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getFirstName() { return firstName; }
@@ -70,7 +73,18 @@ public class Teacher {
     public void setUser(User user) { this.user = user; }
 
     public String getUsername() { return username; }
+    @com.fasterxml.jackson.annotation.JsonSetter("username")
     public void setUsername(String username) { this.username = username; }
+
     public String getPassword() { return password; }
+    @com.fasterxml.jackson.annotation.JsonSetter("password")
     public void setPassword(String password) { this.password = password; }
+
+    public String getPhone() { return phone; }
+    @com.fasterxml.jackson.annotation.JsonSetter("phone")
+    public void setPhone(String phone) { this.phone = phone; }
+
+    public String getEmail() { return email; }
+    @com.fasterxml.jackson.annotation.JsonSetter("email")
+    public void setEmail(String email) { this.email = email; }
 }

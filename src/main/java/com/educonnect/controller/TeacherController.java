@@ -8,7 +8,6 @@ import java.security.Principal;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173") // 🚀 CORS Kalkanı eklendi
 @RequestMapping("/api/teachers")
 public class TeacherController {
 
@@ -18,8 +17,41 @@ public class TeacherController {
         this.teacherService=teacherService;
     }
 
+    public static class TeacherRequest {
+        private String firstName;
+        private String lastName;
+        private String branch;
+        private String username;
+        private String password;
+        private String phone; // 🚀 EKLENDİ
+        private String email; // 🚀 EKLENDİ
+
+        public String getFirstName() { return firstName; }
+        public void setFirstName(String firstName) { this.firstName = firstName; }
+        public String getLastName() { return lastName; }
+        public void setLastName(String lastName) { this.lastName = lastName; }
+        public String getBranch() { return branch; }
+        public void setBranch(String branch) { this.branch = branch; }
+        public String getUsername() { return username; }
+        public void setUsername(String username) { this.username = username; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+        public String getPhone() { return phone; }
+        public void setPhone(String phone) { this.phone = phone; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+    }
+
     @PostMapping
-    public Teacher createTeacher(@RequestBody Teacher teacher) {
+    public Teacher createTeacher(@RequestBody TeacherRequest request) {
+        Teacher teacher = new Teacher();
+        teacher.setFirstName(request.getFirstName());
+        teacher.setLastName(request.getLastName());
+        teacher.setBranch(request.getBranch());
+        teacher.setUsername(request.getUsername());
+        teacher.setPassword(request.getPassword());
+        teacher.setPhone(request.getPhone()); // 🚀 EKLENDİ
+        teacher.setEmail(request.getEmail()); // 🚀 EKLENDİ
         return teacherService.createTeacherWithUser(teacher);
     }
 
@@ -45,8 +77,16 @@ public class TeacherController {
     }
 
     @PutMapping("/{id}")
-    public org.springframework.http.ResponseEntity<?> updateTeacher(@PathVariable Long id, @RequestBody Teacher updatedTeacher) {
-        teacherService.updateTeacher(id, updatedTeacher);
+    public org.springframework.http.ResponseEntity<?> updateTeacher(@PathVariable Long id, @RequestBody TeacherRequest request) {
+        Teacher teacher = new Teacher();
+        teacher.setFirstName(request.getFirstName());
+        teacher.setLastName(request.getLastName());
+        teacher.setBranch(request.getBranch());
+        teacher.setUsername(request.getUsername());
+        teacher.setPassword(request.getPassword());
+        teacher.setPhone(request.getPhone()); // 🚀 EKLENDİ
+        teacher.setEmail(request.getEmail()); // 🚀 EKLENDİ
+        teacherService.updateTeacher(id, teacher);
         return org.springframework.http.ResponseEntity.ok().build();
     }
 

@@ -9,11 +9,11 @@ import com.educonnect.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import java.security.Principal;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/superadmin")
-@CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 public class AdminManagementController {
 
@@ -34,7 +34,7 @@ public class AdminManagementController {
         // Eğer formdan bir schoolId gelmişse, okulu bulup atıyoruz
         if (request.getSchoolId() != null) {
             school = schoolRepository.findById(request.getSchoolId())
-                    .orElseThrow(() -> new RuntimeException("Hata: Belirtilen okul bulunamadı!"));
+                    .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Belirtilen okul bulunamadı!"));
         }
 
         // DTO'dan gelen role bilgisine göre rütbeyi belirliyoruz (Varsayılan: ROLE_ADMIN)
@@ -83,8 +83,8 @@ public class AdminManagementController {
     }
 
     @PutMapping("/update-admin/{id}")
-    public ResponseEntity<?> updateAdmin(@PathVariable Long id, @RequestBody CreateAdminRequest request) {
-        User admin = userRepository.findById(id).orElseThrow(() -> new RuntimeException("Yönetici bulunamadı!"));
+    public ResponseEntity<?> updateAdmin(Principal principal, @PathVariable Long id, @RequestBody CreateAdminRequest request) {
+        User admin = userRepository.findById(id).orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Yönetici bulunamadı!"));
 
         admin.setFirstName(request.getFirstName());
         admin.setLastName(request.getLastName());
@@ -101,6 +101,20 @@ public class AdminManagementController {
 
         // Şifre kutusu boş değilse şifreyi de güncelle
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
+            // Eğer güncellenen yönetici ile şu anki kullanıcı aynı ise mevcut şifre doğrulaması iste
+            if (principal != null) {
+                var currentUserOpt = userRepository.findByUsername(principal.getName());
+                if (currentUserOpt.isPresent()) {
+                    User currentUser = currentUserOpt.get();
+                    if (currentUser.getId().equals(id)) {
+                        // kendi hesabını güncelliyor: currentPassword kontrol et
+                        if (request.getCurrentPassword() == null || !passwordEncoder.matches(request.getCurrentPassword(), currentUser.getPassword())) {
+                            return ResponseEntity.badRequest().body("Mevcut şifre yanlış.");
+                        }
+                    }
+                }
+            }
+
             admin.setPassword(passwordEncoder.encode(request.getPassword()));
         }
 

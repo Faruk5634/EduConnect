@@ -12,6 +12,7 @@ import com.educonnect.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional; // 🚀 EKLENDİ
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -25,6 +26,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional // 🚀 SİHİRLİ DOKUNUŞ: Veritabanı tembelliği çözüldü, tüm işlemler kesin kaydedilecek!
 public class StudentService {
 
     private final StudentRepository studentRepository;
@@ -32,14 +34,13 @@ public class StudentService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final ClassroomRepository classroomRepository;
-    private final UserService userService; // 🚀 YENİ EKLENDİ: Müdürü bulmak için
+    private final UserService userService;
 
     public String createStudentWithUser(CreateStudentRequest request) {
-        User admin = userService.getCurrentUser(); // Giriş yapan müdürü bul
+        User admin = userService.getCurrentUser();
 
         User savedUser = null;
 
-        // 🚀 HAYATİ DÜZELTME: Sadece kullanıcı adı gönderilmişse (Lise öğrencisiyse) hesap oluştur!
         if (request.getUsername() != null && !request.getUsername().trim().isEmpty()) {
 
             if (userRepository.findByUsername(request.getUsername()).isPresent()) {
@@ -49,8 +50,7 @@ public class StudentService {
             User user = new User();
             user.setUsername(request.getUsername());
 
-            // Şifre boş gelme ihtimaline karşı güvenlik önlemi
-            String password = (request.getPassword() != null && !request.getPassword().isEmpty()) ? request.getPassword() : "123456";
+            String password = (request.getPassword() != null && !request.getPassword().trim().isEmpty()) ? request.getPassword() : "123456";
             user.setPassword(passwordEncoder.encode(password));
 
             user.setFirstName(request.getFirstName());
@@ -63,11 +63,9 @@ public class StudentService {
             savedUser = userRepository.save(user);
         }
 
-        // Veli ve Sınıf atamaları
         Parent parent = (request.getParentId() != null) ? parentRepository.findById(request.getParentId()).orElse(null) : null;
         Classroom classroom = (request.getGrade() != null && !request.getGrade().isEmpty()) ? classroomRepository.findByNameAndSchool(request.getGrade(), admin.getSchool()).orElse(null) : null;
 
-        // Öğrenciyi oluştur
         Student student = Student.builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
@@ -90,8 +88,6 @@ public class StudentService {
 
     public List<StudentDTO> getAllStudents() {
         User admin = userService.getCurrentUser();
-
-        // 🚀 GÜVENLİK KİLİDİ: Artık doğrudan öğrencinin okuluna bakıyoruz!
         return studentRepository.findBySchool(admin.getSchool())
                 .stream()
                 .map(this::convertToDTO)
@@ -100,10 +96,10 @@ public class StudentService {
 
     public Student assignParent(Long studentId, Long parentId) {
         Student student = studentRepository.findById(studentId)
-                .orElseThrow(() -> new RuntimeException("Öğrenci bulunamadı"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Öğrenci bulunamadı"));
 
         Parent parent = parentRepository.findById(parentId)
-                .orElseThrow(() -> new RuntimeException("Veli bulunamadı"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Veli bulunamadı"));
 
         student.setParent(parent);
         return studentRepository.save(student);
@@ -111,11 +107,10 @@ public class StudentService {
 
     public Student getStudentBySchoolNumber(String schoolNumber) {
         return studentRepository.findBySchoolNumber(schoolNumber)
-                .orElseThrow(() -> new RuntimeException("Bu okul numarasına ait bir öğrenci bulunamadı!"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bu okul numarasına ait bir öğrenci bulunamadı!"));
     }
 
     public List<StudentDTO> searchStudentsByFirstName(String firstName) {
-        // Not: Eğer aramada da sadece kendi okulunu arasın istersen burayı ileride güncelleyebiliriz
         return studentRepository.findByFirstNameContainingIgnoreCase(firstName)
                 .stream()
                 .map(this::convertToDTO)
@@ -126,15 +121,13 @@ public class StudentService {
         String parentName = (student.getParent() != null) ? student.getParent().getFirstName() + " " + student.getParent().getLastName() : "Veli Atanmadı";
         Long parentId = (student.getParent() != null) ? student.getParent().getId() : null;
         String username = (student.getUser() != null) ? student.getUser().getUsername() : null;
-
-        // 🚀 EKLENDİ
         String phone = (student.getUser() != null) ? student.getUser().getPhone() : null;
         String email = (student.getUser() != null) ? student.getUser().getEmail() : null;
 
         return new StudentDTO(
                 student.getId(), student.getFirstName(), student.getLastName(), student.getSchoolNumber(),
                 parentName, parentId, username, student.getGrade(), student.getGender(),
-                phone, email // 🚀 EKLENDİ
+                phone, email
         );
     }
 
@@ -149,18 +142,16 @@ public class StudentService {
     }
 
     public void updateStudent(Long id, CreateStudentRequest request) {
-
         User admin = userService.getCurrentUser();
 
         Student existingStudent = studentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Öğrenci bulunamadı!"));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Öğrenci bulunamadı!"));
 
         existingStudent.setSchoolNumber(request.getSchoolNumber());
         existingStudent.setFirstName(request.getFirstName());
         existingStudent.setLastName(request.getLastName());
         existingStudent.setGrade(request.getGrade());
 
-        // 🚀 HATA GİDERİLDİ: Cinsiyet güncellenmiyordu, eklendi!
         if (request.getGender() != null) {
             existingStudent.setGender(request.getGender());
         }
@@ -174,19 +165,25 @@ public class StudentService {
 
         if (request.getParentId() != null) {
             Parent parent = parentRepository.findById(request.getParentId())
-                    .orElseThrow(() -> new RuntimeException("Veli bulunamadı!"));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Veli bulunamadı!"));
             existingStudent.setParent(parent);
         } else {
             existingStudent.setParent(null);
         }
 
         if (existingStudent.getUser() != null) {
+            User user = existingStudent.getUser();
+
             if (request.getUsername() != null && !request.getUsername().isEmpty()) {
-                existingStudent.getUser().setUsername(request.getUsername());
+                user.setUsername(request.getUsername());
             }
-            // 🚀 EKLENDİ: İletişim bilgilerini güncelle
-            existingStudent.getUser().setPhone(request.getPhone());
-            existingStudent.getUser().setEmail(request.getEmail());
+            if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
+                user.setPassword(passwordEncoder.encode(request.getPassword()));
+            }
+            user.setPhone(request.getPhone());
+            user.setEmail(request.getEmail());
+
+            userRepository.save(user);
         }
 
         studentRepository.save(existingStudent);
@@ -194,10 +191,10 @@ public class StudentService {
 
     public Student createProfileForExistingUser(String username, Student studentProfile) {
         User existingUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı: " + username));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kullanıcı bulunamadı: " + username));
 
         if (existingUser.getStudent() != null) {
-            throw new RuntimeException("Bu hesabın zaten bir öğrenci profili var!");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu hesabın zaten bir öğrenci profili var!");
         }
 
         studentProfile.setUser(existingUser);

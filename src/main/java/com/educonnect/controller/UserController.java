@@ -4,6 +4,7 @@ import com.educonnect.model.User;
 import com.educonnect.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.security.Principal;
 import java.util.HashMap;
@@ -11,13 +12,14 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = "http://localhost:5173")
 public class UserController {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserController(UserRepository userRepository) {
+    public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // 🚀 YENİ EKLENEN KISIM: Giriş Yapan Kullanıcıyı Hatasız Gönderen Motor
@@ -28,7 +30,7 @@ public class UserController {
         }
 
         User user = userRepository.findByUsername(principal.getName())
-                .orElseThrow(() -> new RuntimeException("Kullanıcı bulunamadı"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Kullanıcı bulunamadı"));
 
         // Sonsuz döngü (500) hatasını engellemek için sadece gerekli verileri temizce paketliyoruz (DTO/Map mantığı)
         Map<String, Object> response = new HashMap<>();
@@ -49,5 +51,34 @@ public class UserController {
         }
 
         return ResponseEntity.ok(response);
+    }
+
+    // 🛠️ Profil güncelleme endpoint'i (me)
+    @PutMapping("/me")
+    public ResponseEntity<?> updateCurrentUser(Principal principal, @RequestBody Map<String, Object> body) {
+        if (principal == null) return ResponseEntity.status(401).build();
+        User user = userRepository.findByUsername(principal.getName()).orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Kullanıcı bulunamadı"));
+
+        if (body.containsKey("firstName")) user.setFirstName((String) body.get("firstName"));
+        if (body.containsKey("lastName")) user.setLastName((String) body.get("lastName"));
+        if (body.containsKey("email")) user.setEmail((String) body.get("email"));
+        if (body.containsKey("phone")) user.setPhone((String) body.get("phone"));
+        if (body.containsKey("password")) {
+            String pw = (String) body.get("password");
+            if (pw != null && !pw.isEmpty()) {
+                // Eğer şifre değişikliği isteniyorsa, mevcut şifre doğrulaması iste
+                if (!body.containsKey("currentPassword") || body.get("currentPassword") == null) {
+                    return ResponseEntity.badRequest().body("Mevcut şifre sağlanmadı.");
+                }
+                String currentPw = (String) body.get("currentPassword");
+                if (!passwordEncoder.matches(currentPw, user.getPassword())) {
+                    return ResponseEntity.badRequest().body("Mevcut şifre yanlış.");
+                }
+                user.setPassword(passwordEncoder.encode(pw));
+            }
+        }
+
+        userRepository.save(user);
+        return ResponseEntity.ok("Profil güncellendi.");
     }
 }

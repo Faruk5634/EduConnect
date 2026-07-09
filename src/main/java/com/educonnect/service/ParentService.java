@@ -8,17 +8,19 @@ import com.educonnect.repository.ParentRepository;
 import com.educonnect.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional; // 🚀 EKLENDİ
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional // 🚀 EKLENDİ
 public class ParentService {
 
     private final ParentRepository parentRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final UserService userService; // 🚀 EKLENDİ: Müdürü bulmak için
+    private final UserService userService;
 
     public ParentService(ParentRepository parentRepository, UserRepository userRepository, PasswordEncoder passwordEncoder, UserService userService) {
         this.parentRepository = parentRepository;
@@ -28,13 +30,12 @@ public class ParentService {
     }
 
     public Parent createParentWithUser(Parent parent) {
-        User admin = userService.getCurrentUser(); // 🚀 Giriş yapan müdürü bul
+        User admin = userService.getCurrentUser();
 
         String usernameToUse = parent.getUsername();
         String passwordToUse = parent.getPassword();
 
-        // 1. Eğer username Frontend'den gelmediyse (İlkokul/Ortaokul ise) otomatik oluştur
-        if (usernameToUse == null || usernameToUse.isEmpty()) {
+        if (usernameToUse == null || usernameToUse.trim().isEmpty()) {
             usernameToUse = (parent.getFirstName() + "." + parent.getLastName())
                     .toLowerCase()
                     .replaceAll("[çÇ]", "c").replaceAll("[ğĞ]", "g").replaceAll("[ıİ]", "i")
@@ -45,26 +46,22 @@ public class ParentService {
                 usernameToUse = usernameToUse + "1";
             }
         } else {
-            // Frontend'den geldiyse (Lise) çakışma var mı diye kontrol et
             if (userRepository.findByUsername(usernameToUse).isPresent()) {
-                throw new RuntimeException("Bu kullanıcı adı zaten alınmış!");
+                throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Bu kullanıcı adı zaten alınmış!");
             }
         }
 
-        // Şifre gelmediyse varsayılan şifre koy
-        if (passwordToUse == null || passwordToUse.isEmpty()) {
+        if (passwordToUse == null || passwordToUse.trim().isEmpty()) {
             passwordToUse = "123456";
         }
 
-        // 2. Kullanıcıyı oluştur
         User user = new User();
         user.setUsername(usernameToUse);
         user.setPassword(passwordEncoder.encode(passwordToUse));
         user.setRole(Role.ROLE_PARENT);
         user.setFirstName(parent.getFirstName());
         user.setLastName(parent.getLastName());
-
-        user.setSchool(admin.getSchool()); // 🚀 GÜVENLİK KİLİDİ: Veliyi müdürün okuluna bağla
+        user.setSchool(admin.getSchool());
 
         User savedUser = userRepository.save(user);
         parent.setUser(savedUser);
@@ -73,9 +70,7 @@ public class ParentService {
     }
 
     public List<ParentDTO> getAllParents() {
-        User admin = userService.getCurrentUser(); // 🚀 Müdürü bul
-
-        // 🚀 GÜVENLİK KİLİDİ: Sadece bu okula ait velileri çek
+        User admin = userService.getCurrentUser();
         List<Parent> parents = parentRepository.findByUserSchool(admin.getSchool());
 
         return parents.stream().map(parent -> {
@@ -88,8 +83,8 @@ public class ParentService {
                     parent.getFirstName(),
                     parent.getLastName(),
                     parent.getEmail(),
-                    parent.getPhoneNumber(), // 🚀 Telefon Numarası Eklendi
-                    parent.getUser() != null ? parent.getUser().getUsername() : null, // 🚀 Username Eklendi
+                    parent.getPhoneNumber(),
+                    parent.getUser() != null ? parent.getUser().getUsername() : null,
                     studentNames
             );
         }).collect(Collectors.toList());
@@ -101,25 +96,26 @@ public class ParentService {
 
     public void updateParent(Long id, Parent updatedParent) {
         Parent existing = parentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Veli bulunamadı!"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Veli bulunamadı!"));
 
-        // Temel bilgileri güncelle
         existing.setFirstName(updatedParent.getFirstName());
         existing.setLastName(updatedParent.getLastName());
         existing.setEmail(updatedParent.getEmail());
-        existing.setPhoneNumber(updatedParent.getPhoneNumber()); // 🚀 HATA ÇÖZÜLDÜ: Artık telefon da güncelleniyor
+        existing.setPhoneNumber(updatedParent.getPhoneNumber());
 
-        // User (Hesap) bilgilerini güncelle
         if (existing.getUser() != null) {
-            existing.getUser().setFirstName(updatedParent.getFirstName());
-            existing.getUser().setLastName(updatedParent.getLastName());
+            User user = existing.getUser();
+            user.setFirstName(updatedParent.getFirstName());
+            user.setLastName(updatedParent.getLastName());
 
-            if (updatedParent.getUsername() != null && !updatedParent.getUsername().isEmpty()) {
-                existing.getUser().setUsername(updatedParent.getUsername());
+            if (updatedParent.getUsername() != null && !updatedParent.getUsername().trim().isEmpty()) {
+                user.setUsername(updatedParent.getUsername());
             }
-            if (updatedParent.getPassword() != null && !updatedParent.getPassword().isEmpty()) {
-                existing.getUser().setPassword(passwordEncoder.encode(updatedParent.getPassword()));
+            if (updatedParent.getPassword() != null && !updatedParent.getPassword().trim().isEmpty()) {
+                user.setPassword(passwordEncoder.encode(updatedParent.getPassword()));
             }
+
+            userRepository.save(user);
         }
 
         parentRepository.save(existing);
@@ -129,7 +125,7 @@ public class ParentService {
         Parent parent = parentRepository.findAll().stream()
                 .filter(p -> p.getUser() != null && p.getUser().getUsername().equals(username))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Bu kullanıcıya ait veli profili bulunamadı!"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Bu kullanıcıya ait veli profili bulunamadı!"));
 
         List<String> studentNames = parent.getStudents() != null ? parent.getStudents().stream()
                                                                    .map(student -> student.getFirstName() + " " + student.getLastName())

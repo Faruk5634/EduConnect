@@ -35,8 +35,7 @@ public class Parent {
     @JsonIgnore
     private User user;
 
-    // 🚀 SİHİRLİ DOKUNUŞ: Frontend'den şifre ve kullanıcı adı alabilmek için
-    // @Transient, "Bunu veritabanına sütun olarak ekleme, sadece geçici olarak hafızada tut" demektir.
+    // 🚀 @JsonProperty buradan kaldırıldı, Setter'a taşındı!
     @Transient
     private String username;
 
@@ -71,9 +70,15 @@ public class Parent {
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
 
-    // 🚀 Yeni eklenenlerin Getter/Setter'ları
     public String getUsername() { return username; }
+
+    // 🚀 SİHİRLİ DOKUNUŞ BURADA
+    @com.fasterxml.jackson.annotation.JsonSetter("username")
     public void setUsername(String username) { this.username = username; }
+
     public String getPassword() { return password; }
+
+    // 🚀 SİHİRLİ DOKUNUŞ BURADA
+    @com.fasterxml.jackson.annotation.JsonSetter("password")
     public void setPassword(String password) { this.password = password; }
 }

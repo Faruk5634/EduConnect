@@ -89,7 +89,8 @@ public class AnnouncementService {
                 announcement.setFileUrl("/uploads/announcements/" + uniqueFilename);
 
             } catch (Exception e) {
-                throw new RuntimeException("Dosya yüklenirken bir hata oluştu: " + e.getMessage());
+                // Daha kontrollü bir hata fırlatalım; GlobalExceptionHandler bunu JSON ile yakalayacak
+                throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "Dosya yüklenirken bir hata oluştu.", e);
             }
         }
 
@@ -138,5 +139,36 @@ public class AnnouncementService {
         return announcementRepository.findBySchoolAndCreatedDateAfter(currentUser.getSchool(), date).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+    }
+
+    // 🚀 YENİ: Duyuru silme işlemi. Dosya varsa filesystem'den de kaldırılır.
+    public void deleteAnnouncement(Long id) {
+        Announcement announcement = announcementRepository.findById(id)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Duyuru bulunamadı: " + id));
+
+        // Eğer duyurunun bir dosya URL'si varsa, dosyayı silmeye çalış
+        if (announcement.getFileUrl() != null && !announcement.getFileUrl().isEmpty()) {
+            try {
+                String filePathStr = announcement.getFileUrl();
+                // fileUrl proje içinde "/uploads/..." şeklinde tutuluyor; baştaki /'i kaldır
+                if (filePathStr.startsWith("/")) {
+                    filePathStr = filePathStr.substring(1);
+                }
+                Path filePath = Paths.get(filePathStr);
+                Files.deleteIfExists(filePath);
+            } catch (Exception e) {
+                // Burada log atmak daha doğru olur; runtime exception fırlatmayarak silme başarısız olsa bile
+                // duyurunun veritabanından kaldırılmasına devam ediyoruz.
+                System.err.println("Dosya silinirken hata: " + e.getMessage());
+            }
+        }
+
+        announcementRepository.deleteById(id);
+    }
+
+    // Basit erişim: id'ye göre duyuruyu döndürür veya 404 fırlatır
+    public Announcement getAnnouncementById(Long id) {
+        return announcementRepository.findById(id)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Duyuru bulunamadı: " + id));
     }
 }

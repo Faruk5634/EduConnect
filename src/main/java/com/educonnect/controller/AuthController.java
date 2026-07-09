@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173")
 @RequestMapping("/api/auth")
 public class AuthController {
 
@@ -87,15 +86,24 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@RequestBody AuthRequest request) {
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Kullanıcı adı veya şifre hatalı!"));
+    public org.springframework.http.ResponseEntity<?> login(@RequestBody AuthRequest request) {
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Kullanıcı adı veya şifre hatalı!");
+        java.util.Optional<User> userOpt = userRepository.findByUsername(request.getUsername());
+
+        // Kullanıcı yoksa 500 atma, kibarca 401 (Yetkisiz) dön!
+        if (userOpt.isEmpty()) {
+            return org.springframework.http.ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Kullanıcı adı veya şifre hatalı!");
         }
 
+        User user = userOpt.get();
+
+        // Şifre eşleşmiyorsa 500 atma, kibarca 401 dön!
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            return org.springframework.http.ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Kullanıcı adı veya şifre hatalı!");
+        }
+
+        // Her şey doğruysa bileti ver
         String token = jwtUtil.generateToken(user.getUsername(), user.getRole().name());
-        return new AuthResponse(user.getUsername(), user.getRole(), "Giriş başarılı.", token);
+        return org.springframework.http.ResponseEntity.ok(new AuthResponse(user.getUsername(), user.getRole(), "Giriş başarılı.", token));
     }
 }

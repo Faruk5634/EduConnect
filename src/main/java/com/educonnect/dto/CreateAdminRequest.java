@@ -9,6 +9,7 @@ public class CreateAdminRequest {
     private String lastName;  // YENİ
     private String phone;     // YENİ
     private String email;     // YENİ
+    private String currentPassword; // isteğe bağlı - kendi şifrenizi doğrulamak için
     private String role;
     private Long schoolId;
 }

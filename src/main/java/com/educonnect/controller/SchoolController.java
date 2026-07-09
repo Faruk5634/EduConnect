@@ -1,7 +1,8 @@
 package com.educonnect.controller;
 
 import com.educonnect.dto.SchoolStatsDTO;
-import com.educonnect.model.*;
+import com.educonnect.model.School;
+import com.educonnect.model.User;
 import com.educonnect.repository.*;
 import com.educonnect.service.SchoolService;
 import com.educonnect.service.UserService;
@@ -10,8 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/school")
-@CrossOrigin(origins = "http://localhost:5173")
+@RequestMapping("/api") // 🚀 YENİ: Kök dizini değiştirdik ki tüm alt linkler uyum sağlasın
 public class SchoolController {
 
     private final SchoolService schoolService;
@@ -22,7 +22,6 @@ public class SchoolController {
     private final ParentRepository parentRepository;
     private final AnnouncementRepository announcementRepository;
 
-    // 🚀 Tüm parçaları (dependencies) buraya ekledik, artık kırmızı hata almayacaksın
     public SchoolController(SchoolService schoolService,
                             UserService userService,
                             StudentRepository studentRepository,
@@ -39,7 +38,31 @@ public class SchoolController {
         this.announcementRepository = announcementRepository;
     }
 
-    @GetMapping("/stats")
+    // 🚀 YENİ: Frontend'in kapısını çaldığı eksik Kurum (School) Köprüleri eklendi!
+
+    @GetMapping("/schools")
+    public List<School> getAllSchools() {
+        return schoolService.getAllSchools();
+    }
+
+    @PostMapping("/schools")
+    public School createSchool(@RequestBody School school) {
+        return schoolService.createSchool(school);
+    }
+
+    @PutMapping("/schools/{id}")
+    public School updateSchool(@PathVariable Long id, @RequestBody School school) {
+        return schoolService.updateSchool(id, school);
+    }
+
+    @DeleteMapping("/schools/{id}")
+    public ResponseEntity<Void> deleteSchool(@PathVariable Long id) {
+        schoolService.deleteSchool(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // --- ESKİ STATS METODU (Bunu bozmadık, Admin paneli bunu kullanıyor) ---
+    @GetMapping("/school/stats")
     public ResponseEntity<?> getSchoolStats() {
         try {
             User user = userService.getCurrentUser();

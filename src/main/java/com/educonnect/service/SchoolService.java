@@ -29,7 +29,7 @@ public class SchoolService {
     // ID ile tek bir okul getir
     public School getSchoolById(Long id) {
         return schoolRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Okul bulunamadı: " + id));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Okul bulunamadı: " + id));
     }
 
     // Okul Sil

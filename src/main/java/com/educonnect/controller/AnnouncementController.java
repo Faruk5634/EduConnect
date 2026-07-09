@@ -4,6 +4,11 @@ import com.educonnect.dto.AnnouncementDTO;
 import com.educonnect.model.Announcement;
 import com.educonnect.model.AnnouncementType;
 import com.educonnect.service.AnnouncementService;
+import com.educonnect.service.UserService;
+import com.educonnect.model.User;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.format.annotation.DateTimeFormat;
 import java.time.LocalDateTime;
@@ -11,14 +16,15 @@ import java.security.Principal;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173") // 🚀 Frontend bağlantı kalkanı eklendi
 @RequestMapping("/api/announcements")
 public class AnnouncementController {
 
     private final AnnouncementService announcementService;
+    private final UserService userService;
 
-    public AnnouncementController(AnnouncementService announcementService) {
+    public AnnouncementController(AnnouncementService announcementService, UserService userService) {
         this.announcementService = announcementService;
+        this.userService = userService;
     }
 
     @PostMapping("/create")
@@ -57,5 +63,29 @@ public class AnnouncementController {
             Principal principal) {
 
         return announcementService.createAnnouncementWithFile(title, content, type, classroomId, file, principal.getName());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteAnnouncement(@PathVariable Long id, Principal principal) {
+        // Yetki kontrolü: yazar veya admin olmalı
+        // current user
+        User currentUser = userService.getCurrentUser();
+
+        Announcement announcement = announcementService.getAnnouncementById(id);
+
+        boolean isAuthor = announcement.getAuthor() != null
+                && announcement.getAuthor().getUser() != null
+                && announcement.getAuthor().getUser().getUsername().equals(currentUser.getUsername());
+
+        boolean isAdmin = currentUser.getRole() != null && (
+                currentUser.getRole().name().equals("ROLE_ADMIN") || currentUser.getRole().name().equals("ROLE_SUPER_ADMIN")
+        );
+
+        if (!isAuthor && !isAdmin) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu duyuruyu silme yetkiniz yok.");
+        }
+
+        announcementService.deleteAnnouncement(id);
+        return ResponseEntity.noContent().build();
     }
 }

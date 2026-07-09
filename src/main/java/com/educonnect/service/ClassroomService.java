@@ -54,10 +54,10 @@ public class ClassroomService {
 
     public Classroom addStudentToClass(Long classId, Long studentId) {
         Classroom classroom = classroomRepository.findById(classId)
-                .orElseThrow(() -> new RuntimeException("Sınıf bulunamadı"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Sınıf bulunamadı"));
 
         Student student = studentRepository.findById(studentId)
-                .orElseThrow(() -> new RuntimeException("Öğrenci bulunamadı"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Öğrenci bulunamadı"));
 
         classroom.getStudents().add(student);
         return classroomRepository.save(classroom);
@@ -65,10 +65,10 @@ public class ClassroomService {
 
     public Classroom addAnnouncementToClass(Long classId, Long announcementId) {
         Classroom classroom = classroomRepository.findById(classId)
-                .orElseThrow(() -> new RuntimeException("Sınıf bulunamadı"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Sınıf bulunamadı"));
 
         Announcement announcement = announcementRepository.findById(announcementId)
-                .orElseThrow(() -> new RuntimeException("Duyuru bulunamadı"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Duyuru bulunamadı"));
 
         classroom.getAnnouncements().add(announcement);
         return classroomRepository.save(classroom);
@@ -76,10 +76,10 @@ public class ClassroomService {
 
     public Classroom assignTeacherToClassroom(Long classId, Long teacherId) {
         Classroom classroom = classroomRepository.findById(classId)
-                .orElseThrow(() -> new RuntimeException("Sınıf bulunamadı!"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Sınıf bulunamadı!"));
 
         Teacher teacher = teacherRepository.findById(teacherId)
-                .orElseThrow(() -> new RuntimeException("Öğretmen bulunamadı!"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Öğretmen bulunamadı!"));
 
         classroom.setHomeroomTeacher(teacher);
         return classroomRepository.save(classroom);
@@ -105,7 +105,7 @@ public class ClassroomService {
 
     public void deleteClassroom(Long id) {
         Classroom classroom = classroomRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Sınıf bulunamadı!"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Sınıf bulunamadı!"));
 
         classroom.setHomeroomTeacher(null);
         classroomRepository.save(classroom);

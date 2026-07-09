@@ -4,6 +4,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 
 import java.time.LocalDateTime;
@@ -42,6 +44,24 @@ public class GlobalExceptionHandler {
         errorResponse.put("hatalar", validasyonHatalari);
 
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatusException(ResponseStatusException ex) {
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("zaman", LocalDateTime.now());
+        errorResponse.put("durumKodu", ex.getStatusCode().value());
+        errorResponse.put("mesaj", ex.getReason() != null ? ex.getReason() : ex.getMessage());
+        return new ResponseEntity<>(errorResponse, ex.getStatusCode());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("zaman", LocalDateTime.now());
+        errorResponse.put("durumKodu", HttpStatus.FORBIDDEN.value());
+        errorResponse.put("mesaj", "Bu işlemi gerçekleştirmek için yetkiniz yok.");
+        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(Exception.class)
