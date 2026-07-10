@@ -200,4 +200,15 @@ public class StudentService {
         studentProfile.setUser(existingUser);
         return studentRepository.save(studentProfile);
     }
+
+    public StudentDTO getMyProfile() {
+        User currentUser = userService.getCurrentUser();
+        if (currentUser.getStudent() == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Öğrenci profili bulunamadı!");
+        }
+        return convertToDTO(currentUser.getStudent());
+    }
+
+
+
 }

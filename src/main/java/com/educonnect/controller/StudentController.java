@@ -71,4 +71,8 @@ public class StudentController {
     public Student completeProfile(@PathVariable String username, @RequestBody Student studentProfile) {
         return studentService.createProfileForExistingUser(username, studentProfile);
     }
+    @GetMapping("/me")
+    public StudentDTO getMyProfile() {
+        return studentService.getMyProfile();
+    }
 }
