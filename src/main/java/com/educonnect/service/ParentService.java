@@ -47,7 +47,7 @@ public class ParentService {
             }
         } else {
             if (userRepository.findByUsername(usernameToUse).isPresent()) {
-                throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Bu kullanıcı adı zaten alınmış!");
+                    throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Bu kullanıcı adı zaten alınmış!");
             }
         }
 
@@ -75,7 +75,8 @@ public class ParentService {
 
         return parents.stream().map(parent -> {
             List<String> studentNames = parent.getStudents() != null ? parent.getStudents().stream()
-                                                                       .map(student -> student.getFirstName() + " " + student.getLastName())
+
+                                                                       .map(student -> student.getFirstName() + " " + student.getLastName() + "|" + student.getSchoolNumber())
                                                                        .collect(Collectors.toList()) : List.of();
 
             return new ParentDTO(
@@ -128,7 +129,7 @@ public class ParentService {
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Bu kullanıcıya ait veli profili bulunamadı!"));
 
         List<String> studentNames = parent.getStudents() != null ? parent.getStudents().stream()
-                                                                   .map(student -> student.getFirstName() + " " + student.getLastName())
+                                                                   .map(student -> student.getFirstName() + " " + student.getLastName() + "|" + student.getSchoolNumber())
                                                                    .collect(Collectors.toList()) : List.of();
 
         return new ParentDTO(
