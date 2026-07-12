@@ -35,10 +35,19 @@ public class JwtFilter extends OncePerRequestFilter {
         String username = null;
         String jwt = null;
 
-        // 2. Bilet kutusu var mı ve bilet "Bearer " (Taşıyıcı) kelimesiyle mi başlıyor?
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            jwt = authorizationHeader.substring(7); // "Bearer " yazısını (7 karakter) at, asıl bileti al
-            username = jwtUtil.extractUsername(jwt); // Biletin içinden kullanıcının adını oku
+        // 🚀 KALICI ÇÖZÜM: Bilet okuma işlemini try-catch yastığına sarıyoruz
+        try {
+            // 2. Bilet kutusu var mı ve bilet "Bearer " (Taşıyıcı) kelimesiyle mi başlıyor?
+            if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+                jwt = authorizationHeader.substring(7); // "Bearer " yazısını (7 karakter) at, asıl bileti al
+                username = jwtUtil.extractUsername(jwt); // Biletin içinden kullanıcının adını oku
+            }
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            // Biletin süresi dolmuşsa sessizce yut, sistemi çökertme!
+            System.out.println("Süresi dolmuş bir token ile istek yapıldı: " + e.getMessage());
+        } catch (Exception e) {
+            // Bilet bozuk veya okunmuyorsa buraya düşer
+            System.out.println("Token ayrıştırılamadı: " + e.getMessage());
         }
 
         // 3. Kullanıcı adı var ama sistemde henüz "Giriş Yapmış" görünmüyorsa
@@ -64,5 +73,4 @@ public class JwtFilter extends OncePerRequestFilter {
         // Memur işini bitirdi. İsteği bir sonraki aşamaya yolla (Bileti olmayanlar zaten kapıda kalacak)
         filterChain.doFilter(request, response);
     }
-
 }

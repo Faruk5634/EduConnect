@@ -51,50 +51,66 @@ public class AnnouncementService {
         return announcementRepository.save(announcement);
     }
 
-    public Announcement createAnnouncementWithFile(String title, String content, AnnouncementType type, Long classroomId, MultipartFile file, String username) {
-        User currentUser = userService.getCurrentUser(); // 🚀 SİHİRLİ DOKUNUŞ
-
-        Announcement announcement = new Announcement();
-        announcement.setTitle(title);
-        announcement.setContent(content);
-        announcement.setType(type);
-        announcement.setCreatedDate(LocalDateTime.now());
-        announcement.setSchool(currentUser.getSchool()); // 🚀 DUYURUYU OKULA MÜHÜRLE
-
+    // 🚀 YENİ MOTOR: Birden fazla sınıfa tek seferde duyuru ve dosya fırlatma
+    public void createAnnouncementWithFileForMultipleClasses(String title, String content, AnnouncementType type, List<Long> classroomIds, MultipartFile file, String username) {
+        User currentUser = userService.getCurrentUser();
         Teacher author = teacherRepository.findByUserUsername(username).orElse(null);
-        announcement.setAuthor(author);
 
-        if (classroomId != null) {
-            Classroom classroom = classroomRepository.findById(classroomId).orElse(null);
-            announcement.setClassroom(classroom);
-        }
+        // 1. DOSYA YÜKLEME İŞLEMİ (Sadece 1 kere yapılır)
+        String savedFileName = null;
+        String savedFileUrl = null;
 
-        // 📂 DOSYA YÜKLEME İŞLEMİ
         if (file != null && !file.isEmpty()) {
             try {
                 String uploadDir = "uploads/announcements/";
                 Path uploadPath = Paths.get(uploadDir);
-
                 if (!Files.exists(uploadPath)) {
                     Files.createDirectories(uploadPath);
                 }
-
-                String originalFilename = file.getOriginalFilename();
-                String uniqueFilename = UUID.randomUUID().toString() + "_" + originalFilename;
+                savedFileName = file.getOriginalFilename();
+                String uniqueFilename = UUID.randomUUID().toString() + "_" + savedFileName;
                 Path filePath = uploadPath.resolve(uniqueFilename);
-
                 Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
-                announcement.setFileName(originalFilename);
-                announcement.setFileUrl("/uploads/announcements/" + uniqueFilename);
-
+                savedFileUrl = "/uploads/announcements/" + uniqueFilename;
             } catch (Exception e) {
-                // Daha kontrollü bir hata fırlatalım; GlobalExceptionHandler bunu JSON ile yakalayacak
                 throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "Dosya yüklenirken bir hata oluştu.", e);
             }
         }
 
-        return announcementRepository.save(announcement);
+        // 2. SINIFLARA DAĞITIM (Seçilen her sınıf için ayrı bir duyuru kaydı oluştur)
+        if (classroomIds != null && !classroomIds.isEmpty()) {
+            for (Long cId : classroomIds) {
+                Announcement announcement = new Announcement();
+                announcement.setTitle(title);
+                announcement.setContent(content);
+                announcement.setType(type);
+                announcement.setCreatedDate(LocalDateTime.now());
+                announcement.setSchool(currentUser.getSchool());
+                announcement.setAuthor(author);
+
+                Classroom classroom = classroomRepository.findById(cId).orElse(null);
+                announcement.setClassroom(classroom);
+
+                announcement.setFileName(savedFileName);
+                announcement.setFileUrl(savedFileUrl);
+
+                announcementRepository.save(announcement);
+            }
+        } else {
+            // Eğer hiçbir sınıf seçilmemişse (Genel Duyuru ise)
+            Announcement announcement = new Announcement();
+            announcement.setTitle(title);
+            announcement.setContent(content);
+            announcement.setType(type);
+            announcement.setCreatedDate(LocalDateTime.now());
+            announcement.setSchool(currentUser.getSchool());
+            announcement.setAuthor(author);
+            announcement.setFileName(savedFileName);
+            announcement.setFileUrl(savedFileUrl);
+
+            announcementRepository.save(announcement);
+        }
     }
 
     private AnnouncementDTO convertToDTO(Announcement a) {

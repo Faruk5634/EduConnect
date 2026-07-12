@@ -53,16 +53,18 @@ public class AnnouncementController {
         return announcementService.getAnnouncementsAfter(date);
     }
 
+    // 🚀 GÜNCELLENDİ: Artık tek bir id yerine, sınıf id'lerinden oluşan bir liste alıyor!
     @PostMapping(value = "/create", consumes = {"multipart/form-data"})
-    public Announcement createAnnouncement(
+    public ResponseEntity<?> createAnnouncement(
             @RequestParam("title") String title,
             @RequestParam("content") String content,
             @RequestParam("type") AnnouncementType type,
-            @RequestParam(value = "classroomId", required = false) Long classroomId,
+            @RequestParam(value = "classroomIds", required = false) List<Long> classroomIds, // 🚀 ARTIK LİSTE ALIYOR
             @RequestParam(value = "file", required = false) org.springframework.web.multipart.MultipartFile file,
             Principal principal) {
 
-        return announcementService.createAnnouncementWithFile(title, content, type, classroomId, file, principal.getName());
+        announcementService.createAnnouncementWithFileForMultipleClasses(title, content, type, classroomIds, file, principal.getName());
+        return ResponseEntity.ok().body("Duyuru başarıyla dağıtıldı!");
     }
 
     @DeleteMapping("/{id}")
