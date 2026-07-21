@@ -3,6 +3,7 @@ package com.educonnect.controller;
 import com.educonnect.dto.MessageRequest;
 import com.educonnect.model.Message;
 import com.educonnect.model.Role;
+import com.educonnect.model.School;
 import com.educonnect.model.User;
 import com.educonnect.repository.MessageRepository;
 import com.educonnect.repository.UserRepository;
@@ -48,7 +49,7 @@ public class MessageController {
                     .findFirst().orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Super Admin bulunamadı!"));
             saveMessage(sender, superAdmin, request.getSubject(), request.getContent());
         }
-        // 3. Kime: BELİRLİ BİR KİŞİYE
+        // 3. Kime: BELİRLİ BİR KİŞİYE (Akıllı Arama Motorundan Gelen User ID)
         else {
             User receiver = userRepository.findById(Long.parseLong(request.getReceiverId()))
                     .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Alıcı bulunamadı!"));
@@ -66,6 +67,14 @@ public class MessageController {
         msg.setContent(content);
         msg.setSentAt(LocalDateTime.now());
         msg.setRead(false);
+
+        // 🛡️ SİHİRLİ DOKUNUŞ: Eğer gönderen veli ise Veli Mührünü bas!
+        if (sender.getRole() == Role.ROLE_PARENT) {
+            msg.setSentByParent(true);
+        } else {
+            msg.setSentByParent(false);
+        }
+
         messageRepository.save(msg);
     }
 
@@ -88,6 +97,9 @@ public class MessageController {
             map.put("date", m.getSentAt().format(dateFormatter));
             map.put("time", m.getSentAt().format(timeFormatter));
             map.put("isRead", m.isRead());
+
+            // 🛡️ VELİ MÜHRÜNÜ REACT TARAFI İÇİN PAKETLE
+            map.put("isSentByParent", m.isSentByParent());
 
             // Mesajı gönderen BEN isem -> Kutu: SENT, Ekranda Gösterilen İsim: Alıcının İsmi
             if (m.getSender().getId().equals(currentUser.getId())) {
@@ -112,5 +124,67 @@ public class MessageController {
         msg.setRead(true);
         messageRepository.save(msg);
         return ResponseEntity.ok("Okundu");
+    }
+
+    // 🚀 GÜNCELLENMİŞ AKILLI ARAMA MOTORU (OKUL FİLTRELİ - VERİ SIZINTISI KESİN ÇÖZÜM)
+    @GetMapping("/search-users")
+    public ResponseEntity<?> searchUsersForMessage(@RequestParam String keyword) {
+        User currentUser = userService.getCurrentUser();
+        School mySchool = currentUser.getSchool();
+
+        if (keyword == null || keyword.trim().length() < 2) {
+            return ResponseEntity.ok(new ArrayList<>());
+        }
+
+        String searchKey = keyword.toLowerCase();
+
+        List<User> filteredUsers = userRepository.findAll().stream()
+                .filter(u -> !u.getId().equals(currentUser.getId())) // Kendini çıkar
+                .filter(u -> {
+                    String fullName = (u.getFirstName() + " " + u.getLastName()).toLowerCase();
+                    String uname = u.getUsername() != null ? u.getUsername().toLowerCase() : "";
+                    return fullName.contains(searchKey) || uname.contains(searchKey);
+                })
+                .filter(u -> {
+                    // 🛡️ EN ÖNEMLİ KURAL: Super Admin hariç herkes MUTLAKA kendi okulunda olmalı!
+                    boolean isSameSchool = (u.getSchool() != null && mySchool != null && u.getSchool().getId().equals(mySchool.getId()))
+                            || u.getRole() == Role.ROLE_SUPER_ADMIN;
+
+                    if (!isSameSchool) return false; // Okullar uyuşmuyorsa direkt ele!
+
+                    // 1. VELİ İSE: Sadece kendi okulundaki İdareci ve Öğretmenleri bulabilir.
+                    if (currentUser.getRole() == Role.ROLE_PARENT) {
+                        return u.getRole() == Role.ROLE_TEACHER || u.getRole() == Role.ROLE_ADMIN || u.getRole() == Role.ROLE_VICE_ADMIN;
+                    }
+                    // 2. ÖĞRENCİ İSE: Sadece kendi okulundaki İdareci ve Öğretmenleri görebilir.
+                    else if (currentUser.getRole() == Role.ROLE_STUDENT) {
+                        return u.getRole() == Role.ROLE_TEACHER || u.getRole() == Role.ROLE_ADMIN || u.getRole() == Role.ROLE_VICE_ADMIN;
+                    }
+                    // 3. ÖĞRETMEN / İDARECİ İSE: Kendi okulundaki Öğrenci, Öğretmen ve İdarecileri görebilir.
+                    else {
+                        return true;
+                    }
+                })
+                .limit(10)
+                .toList();
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (User u : filteredUsers) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("userId", u.getId());
+            map.put("fullName", u.getFirstName() + " " + u.getLastName());
+
+            String roleStr = "Kullanıcı";
+            if (u.getRole() == Role.ROLE_TEACHER) roleStr = "Öğretmen";
+            else if (u.getRole() == Role.ROLE_STUDENT) roleStr = "Öğrenci";
+            else if (u.getRole() == Role.ROLE_PARENT) roleStr = "Veli";
+            else if (u.getRole() == Role.ROLE_ADMIN || u.getRole() == Role.ROLE_VICE_ADMIN) roleStr = "İdareci";
+            else if (u.getRole() == Role.ROLE_SUPER_ADMIN) roleStr = "Sistem Yöneticisi";
+
+            map.put("role", roleStr);
+            result.add(map);
+        }
+
+        return ResponseEntity.ok(result);
     }
 }

@@ -27,4 +27,6 @@ public class Message {
     private LocalDateTime sentAt;
 
     private boolean isRead;
+
+    private boolean isSentByParent;
 }
