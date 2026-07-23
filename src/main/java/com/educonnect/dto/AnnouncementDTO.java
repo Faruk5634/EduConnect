@@ -1,10 +1,12 @@
 package com.educonnect.dto;
 
 import com.educonnect.model.AnnouncementType;
+import com.educonnect.model.AnnouncementFile;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -14,12 +16,11 @@ public class AnnouncementDTO {
     private String title;
     private String content;
     private LocalDateTime createdDate;
-    private String authorName; // Sadece öğretmenin adı!
+    private String authorName;
     private AnnouncementType type;
-    private String classroomName; // Sadece sınıfın adı!
 
-    // Mevcut alanların altına ekle
-    private String fileName;
-    private String fileUrl;
+    // 🚀 GÜNCELLEME: Tek bir sınıf adı yerine, hedef sınıfların listesi
+    private List<String> targetClasses;
 
+    private List<AnnouncementFile> attachedFiles;
 }

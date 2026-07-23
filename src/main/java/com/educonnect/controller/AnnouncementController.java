@@ -59,11 +59,11 @@ public class AnnouncementController {
             @RequestParam("title") String title,
             @RequestParam("content") String content,
             @RequestParam("type") AnnouncementType type,
-            @RequestParam(value = "classroomIds", required = false) List<Long> classroomIds, // 🚀 ARTIK LİSTE ALIYOR
-            @RequestParam(value = "file", required = false) org.springframework.web.multipart.MultipartFile file,
+            @RequestParam(value = "classroomIds", required = false) List<Long> classroomIds,
+            @RequestParam(value = "files", required = false) List<org.springframework.web.multipart.MultipartFile> files, // 🚀 DİZİ OLDU
             Principal principal) {
 
-        announcementService.createAnnouncementWithFileForMultipleClasses(title, content, type, classroomIds, file, principal.getName());
+        announcementService.createAnnouncementWithFileForMultipleClasses(title, content, type, classroomIds, files, principal.getName());
         return ResponseEntity.ok().body("Duyuru başarıyla dağıtıldı!");
     }
 

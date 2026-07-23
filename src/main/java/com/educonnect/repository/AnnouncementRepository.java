@@ -13,15 +13,14 @@ import java.util.List;
 @Repository
 public interface AnnouncementRepository extends JpaRepository<Announcement, Long> {
 
-    // 🚀 GÜVENLİ SORGULAR: Artık tüm duyuruları çekerken "Okul" filtresi uyguluyoruz
     List<Announcement> findBySchool(School school);
     List<Announcement> findByTypeAndSchool(AnnouncementType type, School school);
     List<Announcement> findBySchoolAndCreatedDateAfter(School school, java.time.LocalDateTime date);
-
     List<Announcement> findByAuthorId(Long authorId);
-    List<Announcement> findByClassroom_IdOrderByCreatedDateDesc(Long classroomId);
 
-    // 🚀 DÜZELTME: Artık duyurunun direkt okul bağlantısı olduğu için sorgu çok daha stabil!
+    // 🚀 GÜNCELLEME: Çoğa-Çok ilişki için güncel sınıf arama sorgusu
+    List<Announcement> findByClassrooms_IdOrderByCreatedDateDesc(Long classroomId);
+
     @Query("SELECT count(a) FROM Announcement a WHERE a.school = :school")
     long countBySchool(@Param("school") School school);
 }

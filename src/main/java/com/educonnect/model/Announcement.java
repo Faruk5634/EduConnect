@@ -3,7 +3,8 @@ package com.educonnect.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import jakarta.persistence.FetchType;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 public class Announcement {
@@ -12,8 +13,10 @@ public class Announcement {
     private Long id;
 
     private String title;
-    @Column(columnDefinition = "TEXT") // Uzun içerikler için veritabanını rahatlatır
+
+    @Column(columnDefinition = "TEXT")
     private String content;
+
     private LocalDateTime createdDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -23,29 +26,23 @@ public class Announcement {
     @Enumerated(EnumType.STRING)
     private AnnouncementType type;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "classroom_id")
-    private Classroom classroom;
+    // 🚀 GÜNCELLEME: Tekil sınıf yerine Çoklu Sınıf Bağlantısı (Many-To-Many)
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "announcement_classrooms",
+            joinColumns = @JoinColumn(name = "announcement_id"),
+            inverseJoinColumns = @JoinColumn(name = "classroom_id")
+    )
+    private List<Classroom> classrooms = new ArrayList<>();
 
-    // 🚀 SİHİRLİ KÖPRÜ: Genel duyuruların başka okullara sızmaması için
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "school_id")
     @JsonIgnore
     private School school;
 
-    private String fileName;
-    private String fileUrl;
-
-    public Announcement(Long id, String title, String content, LocalDateTime createdDate, Teacher author, AnnouncementType type, Classroom classroom, School school) {
-        this.id = id;
-        this.title = title;
-        this.content = content;
-        this.createdDate = createdDate;
-        this.author = author;
-        this.type = type;
-        this.classroom = classroom;
-        this.school = school;
-    }
+    @ElementCollection
+    @CollectionTable(name = "announcement_files", joinColumns = @JoinColumn(name = "announcement_id"))
+    private List<AnnouncementFile> attachedFiles = new ArrayList<>();
 
     public Announcement() {
     }
@@ -63,12 +60,12 @@ public class Announcement {
     public void setAuthor(Teacher author) { this.author = author; }
     public AnnouncementType getType() { return type; }
     public void setType(AnnouncementType type) { this.type = type; }
-    public Classroom getClassroom() { return classroom; }
-    public void setClassroom(Classroom classroom) { this.classroom = classroom; }
+
+    public List<Classroom> getClassrooms() { return classrooms; }
+    public void setClassrooms(List<Classroom> classrooms) { this.classrooms = classrooms; }
+
     public School getSchool() { return school; }
-    public void setSchool(School school) { this.school = school; } // 🚀 Eklendi
-    public String getFileName() { return fileName; }
-    public void setFileName(String fileName) { this.fileName = fileName; }
-    public String getFileUrl() { return fileUrl; }
-    public void setFileUrl(String fileUrl) { this.fileUrl = fileUrl; }
+    public void setSchool(School school) { this.school = school; }
+    public List<AnnouncementFile> getAttachedFiles() { return attachedFiles; }
+    public void setAttachedFiles(List<AnnouncementFile> attachedFiles) { this.attachedFiles = attachedFiles; }
 }
