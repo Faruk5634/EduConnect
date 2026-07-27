@@ -1,5 +1,6 @@
 package com.educonnect.security;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -15,13 +16,10 @@ import org.springframework.security.config.Customizer;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor // 🚀 MİMARİ DOKUNUŞ: Constructor kalabalığını sildi
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
-
-    public SecurityConfig(JwtFilter jwtFilter) {
-        this.jwtFilter = jwtFilter;
-    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -30,7 +28,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/uploads/**").permitAll() // 🚀 YENİ: Dışarıdan dosyalara erişim izni
+                        .requestMatchers("/uploads/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
