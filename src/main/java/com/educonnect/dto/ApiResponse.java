@@ -1,11 +1,14 @@
 package com.educonnect.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import java.time.LocalDateTime;
-import java.util.Objects;
 
 /**
  * Basit bir standart API yanıtı. Frontend bunu kullanarak başarılı/başarısız mesajları tutarlı şekilde gösterebilir.
  */
+@Data
+@AllArgsConstructor
 public class ApiResponse<T> {
 
     private boolean success;
@@ -13,7 +16,9 @@ public class ApiResponse<T> {
     private String message;
     private LocalDateTime timestamp;
 
-    public ApiResponse() { this.timestamp = LocalDateTime.now(); }
+    public ApiResponse() {
+        this.timestamp = LocalDateTime.now();
+    }
 
     public ApiResponse(boolean success, T data, String message) {
         this();
@@ -29,27 +34,4 @@ public class ApiResponse<T> {
     public static <T> ApiResponse<T> fail(String message) {
         return new ApiResponse<>(false, null, message);
     }
-
-    public boolean isSuccess() { return success; }
-    public void setSuccess(boolean success) { this.success = success; }
-    public T getData() { return data; }
-    public void setData(T data) { this.data = data; }
-    public String getMessage() { return message; }
-    public void setMessage(String message) { this.message = message; }
-    public LocalDateTime getTimestamp() { return timestamp; }
-    public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        ApiResponse<?> that = (ApiResponse<?>) o;
-        return success == that.success && Objects.equals(data, that.data) && Objects.equals(message, that.message) && Objects.equals(timestamp, that.timestamp);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(success, data, message, timestamp);
-    }
 }
-
