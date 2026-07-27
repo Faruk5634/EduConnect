@@ -6,6 +6,7 @@ import com.educonnect.model.AnnouncementType;
 import com.educonnect.service.AnnouncementService;
 import com.educonnect.service.UserService;
 import com.educonnect.model.User;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -17,15 +18,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/announcements")
+@RequiredArgsConstructor // 🚀 MİMARİ DOKUNUŞ: Uzun Constructor bloğunu sildi!
 public class AnnouncementController {
 
     private final AnnouncementService announcementService;
     private final UserService userService;
-
-    public AnnouncementController(AnnouncementService announcementService, UserService userService) {
-        this.announcementService = announcementService;
-        this.userService = userService;
-    }
 
     @PostMapping("/create")
     public Announcement createAnnouncement(@RequestBody Announcement announcement, Principal principal) {
@@ -53,14 +50,13 @@ public class AnnouncementController {
         return announcementService.getAnnouncementsAfter(date);
     }
 
-    // 🚀 GÜNCELLENDİ: Artık tek bir id yerine, sınıf id'lerinden oluşan bir liste alıyor!
     @PostMapping(value = "/create", consumes = {"multipart/form-data"})
     public ResponseEntity<?> createAnnouncement(
             @RequestParam("title") String title,
             @RequestParam("content") String content,
             @RequestParam("type") AnnouncementType type,
             @RequestParam(value = "classroomIds", required = false) List<Long> classroomIds,
-            @RequestParam(value = "files", required = false) List<org.springframework.web.multipart.MultipartFile> files, // 🚀 DİZİ OLDU
+            @RequestParam(value = "files", required = false) List<org.springframework.web.multipart.MultipartFile> files,
             Principal principal) {
 
         announcementService.createAnnouncementWithFileForMultipleClasses(title, content, type, classroomIds, files, principal.getName());
@@ -69,10 +65,7 @@ public class AnnouncementController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteAnnouncement(@PathVariable Long id, Principal principal) {
-        // Yetki kontrolü: yazar veya admin olmalı
-        // current user
         User currentUser = userService.getCurrentUser();
-
         Announcement announcement = announcementService.getAnnouncementById(id);
 
         boolean isAuthor = announcement.getAuthor() != null
