@@ -1,21 +1,22 @@
 package com.educonnect.model;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import jakarta.persistence.FetchType;
 
 import java.util.Collection;
 import java.util.List;
 
 @Entity
-@Table(name = "users") // PostgreSQL çökmesin diye kalkanımız
-@Data
+@Table(name = "users")
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -43,11 +44,9 @@ public class User implements UserDetails {
     @com.fasterxml.jackson.annotation.JsonIgnore
     private Student student;
 
-    // Kullanıcı silinirse, bağlı olduğu öğretmen profili de otomatik silinsin
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @com.fasterxml.jackson.annotation.JsonIgnore
     private Teacher teacher;
-
 
     @Column(nullable = false)
     private String firstName;
@@ -58,12 +57,8 @@ public class User implements UserDetails {
     private String phone;
     private String email;
 
-
-
-
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Kullanıcının rütbesini sisteme bildiriyoruz
         return List.of(new SimpleGrantedAuthority(role.name()));
     }
 
@@ -77,7 +72,6 @@ public class User implements UserDetails {
         return username;
     }
 
-    // Aşağıdaki hesap durumlarının hepsi şimdilik 'true' (Aktif)
     @Override
     public boolean isAccountNonExpired() { return true; }
     @Override

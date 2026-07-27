@@ -1,16 +1,18 @@
 package com.educonnect.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.List;
 
 @Entity
 @Table(name = "schools")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class School {
@@ -20,7 +22,7 @@ public class School {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String name; // Örn: "EduConnect İzmir Şubesi"
+    private String name;
 
     private String address;
     private String phone;
@@ -36,12 +38,10 @@ public class School {
 
     private String email;
 
-    // Bu okula ait olan sınıflar
     @JsonIgnore
     @OneToMany(mappedBy = "school", cascade = CascadeType.ALL)
     private List<Classroom> classrooms;
 
-    // Bu okula kayıtlı kullanıcılar (Müdür, Öğretmen, Öğrenci vb.)
     @JsonIgnore
     @OneToMany(mappedBy = "school", cascade = CascadeType.ALL)
     private List<User> users;

@@ -3,14 +3,16 @@ package com.educonnect.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import java.util.List;
 
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -38,6 +40,7 @@ public class Teacher {
     @JsonIgnore
     private User user;
 
+    // Şimdilik sistemin bozulmaması için bunları tutuyoruz (DTO'ya geçince silinecek)
     @Transient
     private String username;
 
@@ -45,46 +48,20 @@ public class Teacher {
     private String password;
 
     @Transient
-    private String phone; // 🚀 EKLENDİ
+    private String phone;
 
     @Transient
-    private String email; // 🚀 EKLENDİ
+    private String email;
 
-    public Teacher(Long id, String firstName, String lastName, String branch, List<Classroom> homeroomClasses) {
-        this.id = id;
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.branch = branch;
-        this.homeroomClasses = homeroomClasses;
-    }
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getFirstName() { return firstName; }
-    public void setFirstName(String firstName) { this.firstName = firstName; }
-    public String getLastName() { return lastName; }
-    public void setLastName(String lastName) { this.lastName = lastName; }
-    public String getBranch() { return branch; }
-    public void setBranch(String branch) { this.branch = branch; }
-    public List<Classroom> getHomeroomClasses() { return homeroomClasses; }
-    public void setHomeroomClasses(List<Classroom> homeroomClasses) { this.homeroomClasses = homeroomClasses; }
-
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
-
-    public String getUsername() { return username; }
     @com.fasterxml.jackson.annotation.JsonSetter("username")
     public void setUsername(String username) { this.username = username; }
 
-    public String getPassword() { return password; }
     @com.fasterxml.jackson.annotation.JsonSetter("password")
     public void setPassword(String password) { this.password = password; }
 
-    public String getPhone() { return phone; }
     @com.fasterxml.jackson.annotation.JsonSetter("phone")
     public void setPhone(String phone) { this.phone = phone; }
 
-    public String getEmail() { return email; }
     @com.fasterxml.jackson.annotation.JsonSetter("email")
     public void setEmail(String email) { this.email = email; }
 }
