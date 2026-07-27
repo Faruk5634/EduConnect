@@ -3,10 +3,12 @@ package com.educonnect.service;
 import com.educonnect.model.School;
 import com.educonnect.repository.SchoolRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional; // 🚀 EKLENDİ
 
 import java.util.List;
 
 @Service
+@Transactional // 🚀 MİMARİ DOKUNUŞ: Okul güncellenirken güvenliği sağlar
 public class SchoolService {
 
     private final SchoolRepository schoolRepository;
@@ -15,28 +17,24 @@ public class SchoolService {
         this.schoolRepository = schoolRepository;
     }
 
-    // Yeni Okul Ekle
     public School createSchool(School school) {
-        // İleride aynı isimde okul var mı diye kontrol mekanizmaları buraya eklenebilir
         return schoolRepository.save(school);
     }
 
-    // Tüm Okulları Listele
     public List<School> getAllSchools() {
         return schoolRepository.findAll();
     }
 
-    // ID ile tek bir okul getir
     public School getSchoolById(Long id) {
         return schoolRepository.findById(id)
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Okul bulunamadı: " + id));
     }
 
-    // Okul Sil
     public void deleteSchool(Long id) {
         School school = getSchoolById(id);
         schoolRepository.delete(school);
     }
+
     public School updateSchool(Long id, School updatedDetails) {
         School existing = getSchoolById(id);
         existing.setName(updatedDetails.getName());
@@ -49,5 +47,4 @@ public class SchoolService {
         existing.setAddress(updatedDetails.getAddress());
         return schoolRepository.save(existing);
     }
-
 }

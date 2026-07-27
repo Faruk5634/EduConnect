@@ -7,6 +7,7 @@ import com.educonnect.model.AnnouncementType;
 import com.educonnect.model.User;
 import com.educonnect.repository.AnnouncementRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional; // 🚀 EKLENDİ
 import com.educonnect.repository.TeacherRepository;
 import com.educonnect.model.Teacher;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,12 +27,17 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional // 🚀 MİMARİ DOKUNUŞ: Dosya yüklerken DB patlarsa işlemleri geri al!
 public class AnnouncementService {
 
     private final AnnouncementRepository announcementRepository;
     private final TeacherRepository teacherRepository;
     private final ClassroomRepository classroomRepository;
     private final UserService userService;
+
+    // 🚀 MİMARİ DOKUNUŞ: Magic String temizlendi, sabit değişkene atandı.
+    private static final String UPLOAD_DIR = "uploads/announcements/";
+    private static final String UPLOAD_URL_PREFIX = "/uploads/announcements/";
 
     public AnnouncementService(AnnouncementRepository announcementRepository,
                                TeacherRepository teacherRepository,
@@ -52,12 +58,10 @@ public class AnnouncementService {
         return announcementRepository.save(announcement);
     }
 
-    // 🚀 GÜNCEL MOTOR: Tek bir duyuru kaydı oluşturur, birden fazla sınıfa bağlar.
     public void createAnnouncementWithFileForMultipleClasses(String title, String content, AnnouncementType type, List<Long> classroomIds, List<MultipartFile> files, String username) {
         User currentUser = userService.getCurrentUser();
         Teacher author = teacherRepository.findByUserUsername(username).orElse(null);
 
-        // 1. ÇOKLU DOSYA YÜKLEME İŞLEMİ
         List<AnnouncementFile> savedFiles = new ArrayList<>();
 
         if (files != null && !files.isEmpty()) {
@@ -66,8 +70,7 @@ public class AnnouncementService {
             }
 
             try {
-                String uploadDir = "uploads/announcements/";
-                Path uploadPath = Paths.get(uploadDir);
+                Path uploadPath = Paths.get(UPLOAD_DIR);
                 if (!Files.exists(uploadPath)) {
                     Files.createDirectories(uploadPath);
                 }
@@ -79,7 +82,7 @@ public class AnnouncementService {
                         Path filePath = uploadPath.resolve(uniqueFilename);
                         Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
-                        String savedFileUrl = "/uploads/announcements/" + uniqueFilename;
+                        String savedFileUrl = UPLOAD_URL_PREFIX + uniqueFilename;
                         savedFiles.add(new AnnouncementFile(savedFileName, savedFileUrl));
                     }
                 }
@@ -88,7 +91,6 @@ public class AnnouncementService {
             }
         }
 
-        // 2. TEK BİR DUYURU OLUŞTUR VE SINIFLARI BAĞLA
         Announcement announcement = new Announcement();
         announcement.setTitle(title);
         announcement.setContent(content);
@@ -103,12 +105,10 @@ public class AnnouncementService {
             announcement.setClassrooms(targetClasses);
         }
 
-        // Sadece 1 Kere Kaydet (Spam Bitti!)
         announcementRepository.save(announcement);
     }
 
     private AnnouncementDTO convertToDTO(Announcement a) {
-        // Hedef sınıfların isimlerini çıkartıyoruz
         List<String> classNames = new ArrayList<>();
         if (a.getClassrooms() != null && !a.getClassrooms().isEmpty()) {
             classNames = a.getClassrooms().stream()
@@ -125,7 +125,7 @@ public class AnnouncementService {
                 a.getCreatedDate(),
                 a.getAuthor() != null ? a.getAuthor().getFirstName() + " " + a.getAuthor().getLastName() : "Yönetim (Admin)",
                 a.getType(),
-                classNames, // 🚀 Yeni: Liste olarak gönder
+                classNames,
                 a.getAttachedFiles()
         );
     }

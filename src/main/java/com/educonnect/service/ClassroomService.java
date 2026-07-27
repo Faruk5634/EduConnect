@@ -11,17 +11,19 @@ import com.educonnect.repository.ClassroomRepository;
 import com.educonnect.repository.StudentRepository;
 import com.educonnect.repository.TeacherRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional; // 🚀 EKLENDİ
 
 import java.util.List;
 
 @Service
+@Transactional // 🚀 MİMARİ DOKUNUŞ: Sınıf silinirken yarım kalıp veritabanını bozmasını engeller.
 public class ClassroomService {
 
     private final ClassroomRepository classroomRepository;
     private final StudentRepository studentRepository;
     private final AnnouncementRepository announcementRepository;
     private final TeacherRepository teacherRepository;
-    private final UserService userService; // 🚀 EKLENDİ: Aktif müdürü bulmak için
+    private final UserService userService;
 
     public ClassroomService(ClassroomRepository classroomRepository,
                             StudentRepository studentRepository,
@@ -36,17 +38,13 @@ public class ClassroomService {
     }
 
     public Classroom createClassroom(Classroom classroom) {
-        User admin = userService.getCurrentUser(); // 🚀 Giriş yapan müdürü bul
-
-        classroom.setSchool(admin.getSchool()); // 🚀 GÜVENLİK KİLİDİ: Sınıfı müdürün okuluna mühürle!
-
+        User admin = userService.getCurrentUser();
+        classroom.setSchool(admin.getSchool());
         return classroomRepository.save(classroom);
     }
 
     public List<ClassroomDTO> getAllClassrooms() {
-        User admin = userService.getCurrentUser(); // 🚀 Giriş yapan müdürü bul
-
-        // 🚀 GÜVENLİK KİLİDİ: Sadece bu okula ait sınıfları listele!
+        User admin = userService.getCurrentUser();
         return classroomRepository.findBySchool(admin.getSchool()).stream()
                 .map(this::convertToDTO)
                 .collect(java.util.stream.Collectors.toList());
@@ -121,14 +119,14 @@ public class ClassroomService {
 
     public void updateClassroom(Long id, Classroom updatedClassroom, Long teacherId) {
         Classroom existing = classroomRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Sınıf bulunamadı!"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Sınıf bulunamadı!"));
 
         existing.setName(updatedClassroom.getName());
         existing.setGradeLevel(updatedClassroom.getGradeLevel());
 
         if (teacherId != null) {
             Teacher teacher = teacherRepository.findById(teacherId)
-                    .orElseThrow(() -> new RuntimeException("Öğretmen bulunamadı!"));
+                    .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Öğretmen bulunamadı!"));
             existing.setHomeroomTeacher(teacher);
         } else {
             existing.setHomeroomTeacher(null);
