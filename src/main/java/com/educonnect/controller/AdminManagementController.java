@@ -2,20 +2,24 @@ package com.educonnect.controller;
 
 import com.educonnect.dto.CreateAdminRequest;
 import com.educonnect.service.AdminManagementService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
 import java.security.Principal;
 
 @RestController
 @RequestMapping("/api/superadmin")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('SUPER_ADMIN')")
 public class AdminManagementController {
 
     private final AdminManagementService adminManagementService;
 
     @PostMapping("/create-admin")
-    public ResponseEntity<String> createSchoolAdmin(@RequestBody CreateAdminRequest request) {
+    public ResponseEntity<String> createSchoolAdmin(@Valid @RequestBody CreateAdminRequest request) {
         return ResponseEntity.ok(adminManagementService.createSchoolAdmin(request));
     }
 

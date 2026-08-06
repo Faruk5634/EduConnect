@@ -1,6 +1,8 @@
 package com.educonnect.service;
 
 import com.educonnect.dto.TeacherDTO;
+import com.educonnect.dto.TeacherRequest;
+import com.educonnect.exception.ResourceNotFoundException;
 import com.educonnect.model.Classroom;
 import com.educonnect.model.Role;
 import com.educonnect.model.Teacher;
@@ -8,73 +10,49 @@ import com.educonnect.model.User;
 import com.educonnect.repository.ClassroomRepository;
 import com.educonnect.repository.TeacherRepository;
 import com.educonnect.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class TeacherService {
+
     private final TeacherRepository teacherRepository;
     private final ClassroomRepository classroomRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserService userService;
+    private final UsernameService usernameService;
+    private final UserProvisioningService userProvisioningService; // 🚀 replaces duplicated account-creation logic
 
-    public TeacherService(TeacherRepository teacherRepository,
-                          ClassroomRepository classroomRepository,
-                          UserRepository userRepository,
-                          PasswordEncoder passwordEncoder,
-                          UserService userService) {
-        this.teacherRepository = teacherRepository;
-        this.classroomRepository = classroomRepository;
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.userService = userService;
-    }
-
-    public Teacher createTeacherWithUser(Teacher teacher) {
+    public Teacher createTeacherWithUser(TeacherRequest request) {
         User admin = userService.getCurrentUser();
 
-        String generatedUsername = teacher.getUsername();
-        if (generatedUsername == null || generatedUsername.trim().isEmpty()) {
-            generatedUsername = (teacher.getFirstName() + "." + teacher.getLastName())
-                    .toLowerCase()
-                    .replace("ş", "s").replace("ı", "i").replace("ğ", "g")
-                    .replace("ö", "o").replace("ç", "c").replace("ü", "u")
-                    .replace(" ", "");
+        User savedUser = userProvisioningService.provisionUser(
+                request.getUsername(),
+                request.getPassword(),
+                request.getFirstName(),
+                request.getLastName(),
+                request.getPhone(),
+                request.getEmail(),
+                Role.ROLE_TEACHER,
+                admin.getSchool()
+        );
 
-            if (userRepository.findByUsername(generatedUsername).isPresent()) {
-                generatedUsername = generatedUsername + "1";
-            }
-            } else if (userRepository.findByUsername(generatedUsername).isPresent()) {
-            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Bu kullanıcı adı zaten alınmış!");
-            }
-
-        String password = (teacher.getPassword() != null && !teacher.getPassword().trim().isEmpty())
-                ? teacher.getPassword() : "123456";
-
-        User user = User.builder()
-                .username(generatedUsername)
-                .password(passwordEncoder.encode(password))
-                .role(Role.ROLE_TEACHER)
-                .firstName(teacher.getFirstName())
-                .lastName(teacher.getLastName())
-                .phone(teacher.getPhone()) // 🚀 VERİTABANINA YAZILDI
-                .email(teacher.getEmail()) // 🚀 VERİTABANINA YAZILDI
-                .school(admin.getSchool())
-                .build();
-
-        User savedUser = userRepository.save(user);
+        Teacher teacher = new Teacher();
+        teacher.setFirstName(request.getFirstName());
+        teacher.setLastName(request.getLastName());
+        teacher.setBranch(request.getBranch());
         teacher.setUser(savedUser);
 
-        return teacherRepository.save(teacher);
-    }
-
-    public Teacher createTeacher(Teacher teacher) {
         return teacherRepository.save(teacher);
     }
 
@@ -86,18 +64,15 @@ public class TeacherService {
     }
 
     private TeacherDTO convertToDTO(Teacher teacher) {
-        // İlişki karmaşasını (sonsuz döngüyü) engellemek için sadece String değerleri alıyoruz
         List<TeacherDTO.ClassroomInfo> classInfos = teacher.getHomeroomClasses() != null
                 ? teacher.getHomeroomClasses().stream()
                   .map(c -> new TeacherDTO.ClassroomInfo(c.getId(), c.getName()))
                   .collect(Collectors.toList())
                 : List.of();
 
-        // 🚀 GÜVENLİ ERİŞİM: User nesnesinin içine gömülmek yerine değerleri "dışarıdan" kontrol ederek al
         String username = null;
         String phone = null;
         String email = null;
-
         if (teacher.getUser() != null) {
             username = teacher.getUser().getUsername();
             phone = teacher.getUser().getPhone();
@@ -125,14 +100,13 @@ public class TeacherService {
 
     public TeacherDTO getTeacherProfileByUsername(String username) {
         Teacher teacher = teacherRepository.findByUserUsername(username)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Bu kullanıcıya ait öğretmen profili bulunamadı."));
-
+                .orElseThrow(() -> new ResourceNotFoundException("Bu kullanıcıya ait öğretmen profili bulunamadı."));
         return convertToDTO(teacher);
     }
 
     public void deleteTeacher(Long id) {
         Teacher teacher = teacherRepository.findById(id)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Öğretmen bulunamadı!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Öğretmen bulunamadı!"));
 
         List<Classroom> classrooms = classroomRepository.findByHomeroomTeacher(teacher);
         for (Classroom cls : classrooms) {
@@ -143,28 +117,29 @@ public class TeacherService {
         teacherRepository.delete(teacher);
     }
 
-    public void updateTeacher(Long id, Teacher updatedTeacher) {
+    public void updateTeacher(Long id, TeacherRequest request) {
         Teacher existingTeacher = teacherRepository.findById(id)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Öğretmen bulunamadı!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Öğretmen bulunamadı!"));
 
-        existingTeacher.setFirstName(updatedTeacher.getFirstName());
-        existingTeacher.setLastName(updatedTeacher.getLastName());
-        existingTeacher.setBranch(updatedTeacher.getBranch());
+        existingTeacher.setFirstName(request.getFirstName());
+        existingTeacher.setLastName(request.getLastName());
+        existingTeacher.setBranch(request.getBranch());
 
         if (existingTeacher.getUser() != null) {
             User user = existingTeacher.getUser();
-            user.setFirstName(updatedTeacher.getFirstName());
-            user.setLastName(updatedTeacher.getLastName());
+            user.setFirstName(request.getFirstName());
+            user.setLastName(request.getLastName());
 
-            if (updatedTeacher.getUsername() != null && !updatedTeacher.getUsername().trim().isEmpty()) {
-                user.setUsername(updatedTeacher.getUsername());
+            if (request.getUsername() != null && !request.getUsername().isBlank()) {
+                usernameService.assertUsernameAvailable(request.getUsername(), user.getId());
+                user.setUsername(request.getUsername());
             }
-            if (updatedTeacher.getPassword() != null && !updatedTeacher.getPassword().trim().isEmpty()) {
-                user.setPassword(passwordEncoder.encode(updatedTeacher.getPassword()));
+            if (request.getPassword() != null && !request.getPassword().isBlank()) {
+                user.setPassword(passwordEncoder.encode(request.getPassword()));
             }
 
-            user.setPhone(updatedTeacher.getPhone()); // 🚀 GÜNCELLENDİ
-            user.setEmail(updatedTeacher.getEmail()); // 🚀 GÜNCELLENDİ
+            user.setPhone(request.getPhone());
+            user.setEmail(request.getEmail());
 
             userRepository.save(user);
         }
@@ -174,10 +149,10 @@ public class TeacherService {
 
     public Teacher createProfileForExistingUser(String username, Teacher teacherProfile) {
         User existingUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Kullanıcı bulunamadı: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException("Kullanıcı bulunamadı: " + username));
 
         if (teacherRepository.findByUserUsername(username).isPresent()) {
-            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Bu hesabın zaten bir öğretmen profili var!");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu hesabın zaten bir öğretmen profili var!");
         }
 
         teacherProfile.setUser(existingUser);

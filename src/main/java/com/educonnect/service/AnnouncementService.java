@@ -1,95 +1,71 @@
 package com.educonnect.service;
 
 import com.educonnect.dto.AnnouncementDTO;
-import com.educonnect.model.Announcement;
-import com.educonnect.model.AnnouncementFile;
-import com.educonnect.model.AnnouncementType;
-import com.educonnect.model.User;
+import com.educonnect.exception.ResourceNotFoundException;
+import com.educonnect.model.*;
 import com.educonnect.repository.AnnouncementRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // 🚀 EKLENDİ
-import com.educonnect.repository.TeacherRepository;
-import com.educonnect.model.Teacher;
-import org.springframework.web.multipart.MultipartFile;
 import com.educonnect.repository.ClassroomRepository;
-import com.educonnect.model.Classroom;
-import org.springframework.web.server.ResponseStatusException;
+import com.educonnect.repository.TeacherRepository;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional // 🚀 MİMARİ DOKUNUŞ: Dosya yüklerken DB patlarsa işlemleri geri al!
+@Transactional
+@RequiredArgsConstructor
 public class AnnouncementService {
+
+    private static final Logger log = LoggerFactory.getLogger(AnnouncementService.class);
+    private static final String ANNOUNCEMENTS_SUBDIR = "announcements";
+    private static final int MAX_FILES = 5;
 
     private final AnnouncementRepository announcementRepository;
     private final TeacherRepository teacherRepository;
     private final ClassroomRepository classroomRepository;
     private final UserService userService;
+    private final FileStorageService fileStorageService; // 🚀 was duplicating this logic inline before
 
-    // 🚀 MİMARİ DOKUNUŞ: Magic String temizlendi, sabit değişkene atandı.
-    private static final String UPLOAD_DIR = "uploads/announcements/";
-    private static final String UPLOAD_URL_PREFIX = "/uploads/announcements/";
-
-    public AnnouncementService(AnnouncementRepository announcementRepository,
-                               TeacherRepository teacherRepository,
-                               ClassroomRepository classroomRepository,
-                               UserService userService) {
-        this.announcementRepository = announcementRepository;
-        this.teacherRepository = teacherRepository;
-        this.classroomRepository = classroomRepository;
-        this.userService = userService;
-    }
-
-    public Announcement createAnnouncement(Announcement announcement, String username) {
+    /**
+     * JSON-only announcement creation (no attachments). Takes the DTO, not
+     * the raw entity — see AnnouncementCreateRequest for why that matters.
+     */
+    public Announcement createAnnouncement(com.educonnect.dto.AnnouncementCreateRequest request, String username) {
         User currentUser = userService.getCurrentUser();
         Teacher author = teacherRepository.findByUserUsername(username).orElse(null);
+
+        Announcement announcement = new Announcement();
+        announcement.setTitle(request.getTitle());
+        announcement.setContent(request.getContent());
+        announcement.setType(request.getType());
         announcement.setAuthor(author);
         announcement.setCreatedDate(LocalDateTime.now());
         announcement.setSchool(currentUser.getSchool());
+
+        if (request.getClassroomIds() != null && !request.getClassroomIds().isEmpty()) {
+            announcement.setClassrooms(classroomRepository.findAllById(request.getClassroomIds()));
+        }
+
         return announcementRepository.save(announcement);
     }
 
-    public void createAnnouncementWithFileForMultipleClasses(String title, String content, AnnouncementType type, List<Long> classroomIds, List<MultipartFile> files, String username) {
+    public void createAnnouncementWithFileForMultipleClasses(String title, String content, AnnouncementType type,
+                                                             List<Long> classroomIds, List<MultipartFile> files,
+                                                             String username) {
         User currentUser = userService.getCurrentUser();
         Teacher author = teacherRepository.findByUserUsername(username).orElse(null);
 
-        List<AnnouncementFile> savedFiles = new ArrayList<>();
-
-        if (files != null && !files.isEmpty()) {
-            if (files.size() > 5) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "En fazla 5 adet dosya yükleyebilirsiniz.");
-            }
-
-            try {
-                Path uploadPath = Paths.get(UPLOAD_DIR);
-                if (!Files.exists(uploadPath)) {
-                    Files.createDirectories(uploadPath);
-                }
-
-                for (MultipartFile file : files) {
-                    if (!file.isEmpty()) {
-                        String savedFileName = file.getOriginalFilename();
-                        String uniqueFilename = UUID.randomUUID().toString() + "_" + savedFileName;
-                        Path filePath = uploadPath.resolve(uniqueFilename);
-                        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-                        String savedFileUrl = UPLOAD_URL_PREFIX + uniqueFilename;
-                        savedFiles.add(new AnnouncementFile(savedFileName, savedFileUrl));
-                    }
-                }
-            } catch (Exception e) {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Dosyalar yüklenirken bir hata oluştu.", e);
-            }
-        }
+        List<AnnouncementFile> savedFiles = storeAttachments(files);
 
         Announcement announcement = new Announcement();
         announcement.setTitle(title);
@@ -108,13 +84,35 @@ public class AnnouncementService {
         announcementRepository.save(announcement);
     }
 
+    private List<AnnouncementFile> storeAttachments(List<MultipartFile> files) {
+        if (files == null || files.isEmpty()) {
+            return List.of();
+        }
+        if (files.size() > MAX_FILES) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "En fazla " + MAX_FILES + " adet dosya yükleyebilirsiniz.");
+        }
+
+        List<AnnouncementFile> savedFiles = new ArrayList<>();
+        try {
+            for (MultipartFile file : files) {
+                if (!file.isEmpty()) {
+                    FileStorageService.StoredFile stored = fileStorageService.storeFile(file, ANNOUNCEMENTS_SUBDIR);
+                    savedFiles.add(new AnnouncementFile(stored.originalFileName(), stored.publicUrl()));
+                }
+            }
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Dosyalar yüklenirken bir hata oluştu.", e);
+        }
+        return savedFiles;
+    }
+
     private AnnouncementDTO convertToDTO(Announcement a) {
-        List<String> classNames = new ArrayList<>();
+        List<String> classNames;
         if (a.getClassrooms() != null && !a.getClassrooms().isEmpty()) {
-            classNames = a.getClassrooms().stream()
-                    .map(Classroom::getName)
-                    .collect(Collectors.toList());
+            classNames = a.getClassrooms().stream().map(Classroom::getName).collect(Collectors.toList());
         } else {
+            classNames = new ArrayList<>();
             classNames.add("Genel Duyuru");
         }
 
@@ -153,21 +151,39 @@ public class AnnouncementService {
                 .map(this::convertToDTO).collect(Collectors.toList());
     }
 
-    public void deleteAnnouncement(Long id) {
-        Announcement announcement = announcementRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Duyuru bulunamadı: " + id));
+    /**
+     * 🚀 SRP FIX: this authorization decision used to live in
+     * AnnouncementController, comparing role names as raw strings
+     * ("ROLE_ADMIN".equals(...)). It's business logic about who owns an
+     * announcement, so it belongs next to the rest of the announcement
+     * domain logic, and it now compares the Role enum directly instead of
+     * strings.
+     */
+    public void assertCanDelete(Announcement announcement, User currentUser) {
+        boolean isAuthor = announcement.getAuthor() != null
+                && announcement.getAuthor().getUser() != null
+                && announcement.getAuthor().getUser().getUsername().equals(currentUser.getUsername());
 
-        if (announcement.getAttachedFiles() != null && !announcement.getAttachedFiles().isEmpty()) {
+        boolean isAdmin = currentUser.getRole() == Role.ROLE_ADMIN
+                || currentUser.getRole() == Role.ROLE_VICE_ADMIN
+                || currentUser.getRole() == Role.ROLE_SUPER_ADMIN;
+
+        if (!isAuthor && !isAdmin) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu duyuruyu silme yetkiniz yok.");
+        }
+    }
+
+    public void deleteAnnouncement(Long id) {
+        Announcement announcement = getAnnouncementById(id);
+
+        if (announcement.getAttachedFiles() != null) {
             for (AnnouncementFile file : announcement.getAttachedFiles()) {
                 try {
-                    String filePathStr = file.getFileUrl();
-                    if (filePathStr.startsWith("/")) {
-                        filePathStr = filePathStr.substring(1);
-                    }
-                    Path filePath = Paths.get(filePathStr);
-                    Files.deleteIfExists(filePath);
-                } catch (Exception e) {
-                    System.err.println("Dosya silinirken hata: " + e.getMessage());
+                    fileStorageService.deleteFile(file.getFileUrl());
+                } catch (IOException e) {
+                    // Not fatal: the DB record is the source of truth, an orphaned
+                    // file on disk is a cleanup nuisance, not a correctness issue.
+                    log.warn("Duyuru dosyası silinemedi (id={}, dosya={}): {}", id, file.getFileUrl(), e.getMessage());
                 }
             }
         }
@@ -177,6 +193,6 @@ public class AnnouncementService {
 
     public Announcement getAnnouncementById(Long id) {
         return announcementRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Duyuru bulunamadı: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Duyuru bulunamadı: " + id));
     }
 }

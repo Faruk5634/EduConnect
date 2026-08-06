@@ -1,21 +1,20 @@
 package com.educonnect.service;
 
+import com.educonnect.exception.ResourceNotFoundException;
 import com.educonnect.model.School;
 import com.educonnect.repository.SchoolRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // 🚀 EKLENDİ
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
-@Transactional // 🚀 MİMARİ DOKUNUŞ: Okul güncellenirken güvenliği sağlar
+@Transactional
+@RequiredArgsConstructor
 public class SchoolService {
 
     private final SchoolRepository schoolRepository;
-
-    public SchoolService(SchoolRepository schoolRepository) {
-        this.schoolRepository = schoolRepository;
-    }
 
     public School createSchool(School school) {
         return schoolRepository.save(school);
@@ -27,7 +26,7 @@ public class SchoolService {
 
     public School getSchoolById(Long id) {
         return schoolRepository.findById(id)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Okul bulunamadı: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Okul bulunamadı: " + id));
     }
 
     public void deleteSchool(Long id) {

@@ -2,6 +2,7 @@ package com.educonnect.service;
 
 import com.educonnect.dto.AuthRequest;
 import com.educonnect.dto.AuthResponse;
+import com.educonnect.exception.ResourceNotFoundException;
 import com.educonnect.model.Role;
 import com.educonnect.model.School;
 import com.educonnect.model.User;
@@ -25,6 +26,13 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
+    // NOTE (follow-up, not applied here): this method currently handles three
+    // distinct flows in one place — bootstrapping the first super admin,
+    // a super admin registering staff for any school, and a school admin
+    // registering staff for their own school. Each has different rules.
+    // Worth splitting into named strategies once you're ready to touch
+    // registration behavior; left as-is here since changing the flow itself
+    // wasn't asked for and deserves its own review.
     public AuthResponse register(AuthRequest request, String currentUsername, boolean isAnonymous) {
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu kullanıcı adı zaten alınmış!");
@@ -53,9 +61,9 @@ public class AuthService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Super Admin birini kaydederken mutlaka bir 'schoolId' göndermelidir.");
             }
             School targetSchool = schoolRepository.findById(request.getSchoolId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Belirtilen okul bulunamadı."));
+                    .orElseThrow(() -> new ResourceNotFoundException("Belirtilen okul bulunamadı."));
             newUser.setSchool(targetSchool);
-        } else if (currentUser.getRole() == Role.ROLE_ADMIN) {
+        } else if (currentUser.getRole() == Role.ROLE_ADMIN || currentUser.getRole() == Role.ROLE_VICE_ADMIN) {
             if (currentUser.getSchool() == null) {
                 throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Bu müdürün atanmış bir okulu yok!");
             }

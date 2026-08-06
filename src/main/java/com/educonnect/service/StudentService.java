@@ -1,6 +1,8 @@
 package com.educonnect.service;
 
+import com.educonnect.dto.CreateStudentRequest;
 import com.educonnect.dto.StudentDTO;
+import com.educonnect.exception.ResourceNotFoundException;
 import com.educonnect.model.Classroom;
 import com.educonnect.model.Parent;
 import com.educonnect.model.Role;
@@ -9,24 +11,23 @@ import com.educonnect.repository.ClassroomRepository;
 import com.educonnect.repository.ParentRepository;
 import com.educonnect.repository.StudentRepository;
 import com.educonnect.repository.UserRepository;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // 🚀 EKLENDİ
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import com.educonnect.dto.CreateStudentRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import lombok.RequiredArgsConstructor;
-import com.educonnect.model.User;
 
 import java.util.List;
+import java.util.stream.Collectors;
+import com.educonnect.model.User;
 
 @Service
 @RequiredArgsConstructor
-@Transactional // 🚀 SİHİRLİ DOKUNUŞ: Veritabanı tembelliği çözüldü, tüm işlemler kesin kaydedilecek!
+@Transactional
 public class StudentService {
 
     private final StudentRepository studentRepository;
@@ -35,36 +36,31 @@ public class StudentService {
     private final PasswordEncoder passwordEncoder;
     private final ClassroomRepository classroomRepository;
     private final UserService userService;
+    private final UserProvisioningService userProvisioningService; // 🚀 replaces duplicated account-creation logic
 
     public String createStudentWithUser(CreateStudentRequest request) {
         User admin = userService.getCurrentUser();
 
+        // Students, unlike parents/teachers, only get a login account if one
+        // was explicitly requested (some students don't log in themselves).
         User savedUser = null;
-
-        if (request.getUsername() != null && !request.getUsername().trim().isEmpty()) {
-
-            if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu kullanıcı adı zaten alınmış!");
-            }
-
-            User user = new User();
-            user.setUsername(request.getUsername());
-
-            String password = (request.getPassword() != null && !request.getPassword().trim().isEmpty()) ? request.getPassword() : "123456";
-            user.setPassword(passwordEncoder.encode(password));
-
-            user.setFirstName(request.getFirstName());
-            user.setLastName(request.getLastName());
-            user.setRole(Role.ROLE_STUDENT);
-            user.setSchool(admin.getSchool());
-            user.setPhone(request.getPhone());
-            user.setEmail(request.getEmail());
-
-            savedUser = userRepository.save(user);
+        if (request.getUsername() != null && !request.getUsername().isBlank()) {
+            savedUser = userProvisioningService.provisionUser(
+                    request.getUsername(),
+                    request.getPassword(),
+                    request.getFirstName(),
+                    request.getLastName(),
+                    request.getPhone(),
+                    request.getEmail(),
+                    Role.ROLE_STUDENT,
+                    admin.getSchool()
+            );
         }
 
         Parent parent = (request.getParentId() != null) ? parentRepository.findById(request.getParentId()).orElse(null) : null;
-        Classroom classroom = (request.getGrade() != null && !request.getGrade().isEmpty()) ? classroomRepository.findByNameAndSchool(request.getGrade(), admin.getSchool()).orElse(null) : null;
+        Classroom classroom = (request.getGrade() != null && !request.getGrade().isEmpty())
+                ? classroomRepository.findByNameAndSchool(request.getGrade(), admin.getSchool()).orElse(null)
+                : null;
 
         Student student = Student.builder()
                 .firstName(request.getFirstName())
@@ -96,10 +92,9 @@ public class StudentService {
 
     public Student assignParent(Long studentId, Long parentId) {
         Student student = studentRepository.findById(studentId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Öğrenci bulunamadı"));
-
+                .orElseThrow(() -> new ResourceNotFoundException("Öğrenci bulunamadı"));
         Parent parent = parentRepository.findById(parentId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Veli bulunamadı"));
+                .orElseThrow(() -> new ResourceNotFoundException("Veli bulunamadı"));
 
         student.setParent(parent);
         return studentRepository.save(student);
@@ -107,7 +102,7 @@ public class StudentService {
 
     public Student getStudentBySchoolNumber(String schoolNumber) {
         return studentRepository.findBySchoolNumber(schoolNumber)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bu okul numarasına ait bir öğrenci bulunamadı!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Bu okul numarasına ait bir öğrenci bulunamadı!"));
     }
 
     public List<StudentDTO> searchStudentsByFirstName(String firstName) {
@@ -133,8 +128,7 @@ public class StudentService {
 
     public Page<StudentDTO> getStudentsPaginated(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return studentRepository.findAll(pageable)
-                .map(this::convertToDTO);
+        return studentRepository.findAll(pageable).map(this::convertToDTO);
     }
 
     public void deleteStudent(Long id) {
@@ -145,7 +139,7 @@ public class StudentService {
         User admin = userService.getCurrentUser();
 
         Student existingStudent = studentRepository.findById(id)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Öğrenci bulunamadı!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Öğrenci bulunamadı!"));
 
         existingStudent.setSchoolNumber(request.getSchoolNumber());
         existingStudent.setFirstName(request.getFirstName());
@@ -157,7 +151,7 @@ public class StudentService {
         }
 
         if (request.getGrade() != null && !request.getGrade().isEmpty()) {
-            Classroom classroom = classroomRepository.findByNameAndSchool(request.getGrade(),admin.getSchool()).orElse(null);
+            Classroom classroom = classroomRepository.findByNameAndSchool(request.getGrade(), admin.getSchool()).orElse(null);
             existingStudent.setClassroom(classroom);
         } else {
             existingStudent.setClassroom(null);
@@ -165,7 +159,7 @@ public class StudentService {
 
         if (request.getParentId() != null) {
             Parent parent = parentRepository.findById(request.getParentId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Veli bulunamadı!"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Veli bulunamadı!"));
             existingStudent.setParent(parent);
         } else {
             existingStudent.setParent(null);
@@ -177,7 +171,7 @@ public class StudentService {
             if (request.getUsername() != null && !request.getUsername().isEmpty()) {
                 user.setUsername(request.getUsername());
             }
-            if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
+            if (request.getPassword() != null && !request.getPassword().isBlank()) {
                 user.setPassword(passwordEncoder.encode(request.getPassword()));
             }
             user.setPhone(request.getPhone());
@@ -191,7 +185,7 @@ public class StudentService {
 
     public Student createProfileForExistingUser(String username, Student studentProfile) {
         User existingUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kullanıcı bulunamadı: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException("Kullanıcı bulunamadı: " + username));
 
         if (existingUser.getStudent() != null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu hesabın zaten bir öğrenci profili var!");
@@ -204,11 +198,8 @@ public class StudentService {
     public StudentDTO getMyProfile() {
         User currentUser = userService.getCurrentUser();
         if (currentUser.getStudent() == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Öğrenci profili bulunamadı!");
+            throw new ResourceNotFoundException("Öğrenci profili bulunamadı!");
         }
         return convertToDTO(currentUser.getStudent());
     }
-
-
-
 }

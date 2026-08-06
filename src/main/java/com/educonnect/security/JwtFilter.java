@@ -11,12 +11,16 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor // 🚀 MİMARİ DOKUNUŞ: Memura araç gereçlerini otomatik zimmetler
 public class JwtFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtFilter.class);
 
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
@@ -36,9 +40,9 @@ public class JwtFilter extends OncePerRequestFilter {
                 username = jwtUtil.extractUsername(jwt);
             }
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
-            System.out.println("Süresi dolmuş bir token ile istek yapıldı: " + e.getMessage());
+            log.warn("Süresi dolmuş token ile istek yapıldı: {}", e.getMessage());
         } catch (Exception e) {
-            System.out.println("Token ayrıştırılamadı: " + e.getMessage());
+            log.warn("Token ayrıştırılamadı: {}", e.getMessage());
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {

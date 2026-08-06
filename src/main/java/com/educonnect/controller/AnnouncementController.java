@@ -1,32 +1,35 @@
 package com.educonnect.controller;
 
+import com.educonnect.dto.AnnouncementCreateRequest;
 import com.educonnect.dto.AnnouncementDTO;
 import com.educonnect.model.Announcement;
 import com.educonnect.model.AnnouncementType;
+import com.educonnect.model.User;
 import com.educonnect.service.AnnouncementService;
 import com.educonnect.service.UserService;
-import com.educonnect.model.User;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.format.annotation.DateTimeFormat;
-import java.time.LocalDateTime;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
 import java.security.Principal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/announcements")
-@RequiredArgsConstructor // 🚀 MİMARİ DOKUNUŞ: Uzun Constructor bloğunu sildi!
+@RequiredArgsConstructor
 public class AnnouncementController {
 
     private final AnnouncementService announcementService;
     private final UserService userService;
 
+    @PreAuthorize("hasAnyRole('TEACHER','ADMIN','VICE_ADMIN','SUPER_ADMIN')")
     @PostMapping("/create")
-    public Announcement createAnnouncement(@RequestBody Announcement announcement, Principal principal) {
-        return announcementService.createAnnouncement(announcement, principal.getName());
+    public Announcement createAnnouncement(@Valid @RequestBody AnnouncementCreateRequest request, Principal principal) {
+        return announcementService.createAnnouncement(request, principal.getName());
     }
 
     @GetMapping
@@ -50,8 +53,9 @@ public class AnnouncementController {
         return announcementService.getAnnouncementsAfter(date);
     }
 
+    @PreAuthorize("hasAnyRole('TEACHER','ADMIN','VICE_ADMIN','SUPER_ADMIN')")
     @PostMapping(value = "/create", consumes = {"multipart/form-data"})
-    public ResponseEntity<?> createAnnouncement(
+    public ResponseEntity<?> createAnnouncementWithFiles(
             @RequestParam("title") String title,
             @RequestParam("content") String content,
             @RequestParam("type") AnnouncementType type,
@@ -64,22 +68,13 @@ public class AnnouncementController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteAnnouncement(@PathVariable Long id, Principal principal) {
+    public ResponseEntity<?> deleteAnnouncement(@PathVariable Long id) {
         User currentUser = userService.getCurrentUser();
         Announcement announcement = announcementService.getAnnouncementById(id);
 
-        boolean isAuthor = announcement.getAuthor() != null
-                && announcement.getAuthor().getUser() != null
-                && announcement.getAuthor().getUser().getUsername().equals(currentUser.getUsername());
-
-        boolean isAdmin = currentUser.getRole() != null && (
-                currentUser.getRole().name().equals("ROLE_ADMIN") || currentUser.getRole().name().equals("ROLE_SUPER_ADMIN")
-        );
-
-        if (!isAuthor && !isAdmin) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu duyuruyu silme yetkiniz yok.");
-        }
-
+        // Ownership/role decision now lives in AnnouncementService, using the
+        // Role enum instead of string comparisons — see assertCanDelete().
+        announcementService.assertCanDelete(announcement, currentUser);
         announcementService.deleteAnnouncement(id);
         return ResponseEntity.noContent().build();
     }

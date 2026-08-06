@@ -1,69 +1,52 @@
 package com.educonnect.service;
 
 import com.educonnect.dto.ParentDTO;
+import com.educonnect.dto.ParentRequest;
+import com.educonnect.exception.ResourceNotFoundException;
 import com.educonnect.model.Parent;
 import com.educonnect.model.Role;
 import com.educonnect.model.User;
 import com.educonnect.repository.ParentRepository;
 import com.educonnect.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // 🚀 EKLENDİ
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional // 🚀 EKLENDİ
+@Transactional
+@RequiredArgsConstructor
 public class ParentService {
 
     private final ParentRepository parentRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserService userService;
+    private final UsernameService usernameService;
+    private final UserProvisioningService userProvisioningService; // 🚀 replaces duplicated account-creation logic
 
-    public ParentService(ParentRepository parentRepository, UserRepository userRepository, PasswordEncoder passwordEncoder, UserService userService) {
-        this.parentRepository = parentRepository;
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.userService = userService;
-    }
-
-    public Parent createParentWithUser(Parent parent) {
+    public Parent createParentWithUser(ParentRequest request) {
         User admin = userService.getCurrentUser();
 
-        String usernameToUse = parent.getUsername();
-        String passwordToUse = parent.getPassword();
+        User savedUser = userProvisioningService.provisionUser(
+                request.getUsername(),
+                request.getPassword(),
+                request.getFirstName(),
+                request.getLastName(),
+                request.getPhoneNumber(),
+                request.getEmail(),
+                Role.ROLE_PARENT,
+                admin.getSchool()
+        );
 
-        if (usernameToUse == null || usernameToUse.trim().isEmpty()) {
-            usernameToUse = (parent.getFirstName() + "." + parent.getLastName())
-                    .toLowerCase()
-                    .replaceAll("[çÇ]", "c").replaceAll("[ğĞ]", "g").replaceAll("[ıİ]", "i")
-                    .replaceAll("[öÖ]", "o").replaceAll("[şŞ]", "s").replaceAll("[üÜ]", "u")
-                    .replaceAll("\\s+", "");
-
-            if (userRepository.findByUsername(usernameToUse).isPresent()) {
-                usernameToUse = usernameToUse + "1";
-            }
-        } else {
-            if (userRepository.findByUsername(usernameToUse).isPresent()) {
-                    throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "Bu kullanıcı adı zaten alınmış!");
-            }
-        }
-
-        if (passwordToUse == null || passwordToUse.trim().isEmpty()) {
-            passwordToUse = "123456";
-        }
-
-        User user = new User();
-        user.setUsername(usernameToUse);
-        user.setPassword(passwordEncoder.encode(passwordToUse));
-        user.setRole(Role.ROLE_PARENT);
-        user.setFirstName(parent.getFirstName());
-        user.setLastName(parent.getLastName());
-        user.setSchool(admin.getSchool());
-
-        User savedUser = userRepository.save(user);
+        Parent parent = new Parent();
+        parent.setFirstName(request.getFirstName());
+        parent.setLastName(request.getLastName());
+        parent.setEmail(request.getEmail());
+        parent.setPhoneNumber(request.getPhoneNumber());
         parent.setUser(savedUser);
 
         return parentRepository.save(parent);
@@ -72,48 +55,33 @@ public class ParentService {
     public List<ParentDTO> getAllParents() {
         User admin = userService.getCurrentUser();
         List<Parent> parents = parentRepository.findByUserSchool(admin.getSchool());
-
-        return parents.stream().map(parent -> {
-            List<String> studentNames = parent.getStudents() != null ? parent.getStudents().stream()
-
-                                                                       .map(student -> student.getFirstName() + " " + student.getLastName() + "|" + student.getSchoolNumber())
-                                                                       .collect(Collectors.toList()) : List.of();
-
-            return new ParentDTO(
-                    parent.getId(),
-                    parent.getFirstName(),
-                    parent.getLastName(),
-                    parent.getEmail(),
-                    parent.getPhoneNumber(),
-                    parent.getUser() != null ? parent.getUser().getUsername() : null,
-                    studentNames
-            );
-        }).collect(Collectors.toList());
+        return parents.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     public void deleteParent(Long id) {
         parentRepository.deleteById(id);
     }
 
-    public void updateParent(Long id, Parent updatedParent) {
+    public void updateParent(Long id, ParentRequest request) {
         Parent existing = parentRepository.findById(id)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Veli bulunamadı!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Veli bulunamadı!"));
 
-        existing.setFirstName(updatedParent.getFirstName());
-        existing.setLastName(updatedParent.getLastName());
-        existing.setEmail(updatedParent.getEmail());
-        existing.setPhoneNumber(updatedParent.getPhoneNumber());
+        existing.setFirstName(request.getFirstName());
+        existing.setLastName(request.getLastName());
+        existing.setEmail(request.getEmail());
+        existing.setPhoneNumber(request.getPhoneNumber());
 
         if (existing.getUser() != null) {
             User user = existing.getUser();
-            user.setFirstName(updatedParent.getFirstName());
-            user.setLastName(updatedParent.getLastName());
+            user.setFirstName(request.getFirstName());
+            user.setLastName(request.getLastName());
 
-            if (updatedParent.getUsername() != null && !updatedParent.getUsername().trim().isEmpty()) {
-                user.setUsername(updatedParent.getUsername());
+            if (request.getUsername() != null && !request.getUsername().isBlank()) {
+                usernameService.assertUsernameAvailable(request.getUsername(), user.getId());
+                user.setUsername(request.getUsername());
             }
-            if (updatedParent.getPassword() != null && !updatedParent.getPassword().trim().isEmpty()) {
-                user.setPassword(passwordEncoder.encode(updatedParent.getPassword()));
+            if (request.getPassword() != null && !request.getPassword().isBlank()) {
+                user.setPassword(passwordEncoder.encode(request.getPassword()));
             }
 
             userRepository.save(user);
@@ -123,14 +91,17 @@ public class ParentService {
     }
 
     public ParentDTO getParentProfileByUsername(String username) {
-        Parent parent = parentRepository.findAll().stream()
-                .filter(p -> p.getUser() != null && p.getUser().getUsername().equals(username))
-                .findFirst()
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Bu kullanıcıya ait veli profili bulunamadı!"));
+        Parent parent = parentRepository.findByUserUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Bu kullanıcıya ait veli profili bulunamadı!"));
+        return convertToDTO(parent);
+    }
 
-        List<String> studentNames = parent.getStudents() != null ? parent.getStudents().stream()
-                                                                   .map(student -> student.getFirstName() + " " + student.getLastName() + "|" + student.getSchoolNumber())
-                                                                   .collect(Collectors.toList()) : List.of();
+    private ParentDTO convertToDTO(Parent parent) {
+        List<String> studentNames = parent.getStudents() != null
+                ? parent.getStudents().stream()
+                  .map(student -> student.getFirstName() + " " + student.getLastName() + "|" + student.getSchoolNumber())
+                  .collect(Collectors.toList())
+                : List.of();
 
         return new ParentDTO(
                 parent.getId(),

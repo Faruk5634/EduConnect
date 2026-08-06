@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ParentRepository extends JpaRepository<Parent, Long> {
@@ -17,4 +18,6 @@ public interface ParentRepository extends JpaRepository<Parent, Long> {
 
     // 🚀 SIZINTIYI ÖNLEYEN KÖPRÜ: Okula göre veli getirme
     List<Parent> findByUserSchool(School school);
+
+    Optional<Parent> findByUserUsername(String username);
 }

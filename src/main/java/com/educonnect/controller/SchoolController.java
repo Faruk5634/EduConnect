@@ -2,66 +2,52 @@ package com.educonnect.controller;
 
 import com.educonnect.dto.SchoolStatsDTO;
 import com.educonnect.model.School;
-import com.educonnect.model.User;
-import com.educonnect.repository.*;
 import com.educonnect.service.SchoolService;
-import com.educonnect.service.UserService;
+import com.educonnect.service.SchoolStatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
 @RequestMapping("/api")
-@RequiredArgsConstructor // 🚀 MİMARİ DOKUNUŞ: 7 tane bağımlılığı tek satırda bağladık!
+@RequiredArgsConstructor
 public class SchoolController {
 
     private final SchoolService schoolService;
-    private final UserService userService;
-    private final StudentRepository studentRepository;
-    private final TeacherRepository teacherRepository;
-    private final ClassroomRepository classroomRepository;
-    private final ParentRepository parentRepository;
-    private final AnnouncementRepository announcementRepository;
+    private final SchoolStatsService schoolStatsService;
 
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     @GetMapping("/schools")
     public List<School> getAllSchools() {
         return schoolService.getAllSchools();
     }
 
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PostMapping("/schools")
     public School createSchool(@RequestBody School school) {
         return schoolService.createSchool(school);
     }
 
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     @PutMapping("/schools/{id}")
     public School updateSchool(@PathVariable Long id, @RequestBody School school) {
         return schoolService.updateSchool(id, school);
     }
 
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     @DeleteMapping("/schools/{id}")
     public ResponseEntity<Void> deleteSchool(@PathVariable Long id) {
         schoolService.deleteSchool(id);
         return ResponseEntity.noContent().build();
     }
 
+    // Any authenticated user can see stats for their OWN school —
+    // SchoolStatsService already scopes this to userService.getCurrentUser().getSchool().
     @GetMapping("/school/stats")
-    public ResponseEntity<?> getSchoolStats() {
-        try {
-            User user = userService.getCurrentUser();
-            School school = user.getSchool();
-
-            if (school == null) return ResponseEntity.ok(new SchoolStatsDTO(0, 0, 0, 0, 0));
-
-            return ResponseEntity.ok(new SchoolStatsDTO(
-                    studentRepository.countBySchool(school),
-                    teacherRepository.countBySchool(school),
-                    classroomRepository.countBySchool(school),
-                    parentRepository.countBySchool(school),
-                    announcementRepository.countBySchool(school)
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Hata: " + e.getMessage());
-        }
+    public ResponseEntity<SchoolStatsDTO> getSchoolStats() {
+        return ResponseEntity.ok(schoolStatsService.getCurrentSchoolStats());
     }
 }

@@ -9,33 +9,59 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+/**
+ * 🔒 SECURITY FIX: the previous version fell back to a hardcoded secret
+ * ("gizliAnahtarEduConnect...") if jwt.secret was missing from config.
+ * That string was sitting in source control, so anyone with repo access
+ * could forge a valid token for ANY user (including super admin) in any
+ * environment that forgot to override the property.
+ *
+ * Now: jwt.secret is REQUIRED. The app refuses to start without it, and
+ * refuses to start if it's too short for HS256. Fail fast beats fail open.
+ *
+ * Configure it via environment variable, e.g.:
+ *   export JWT_SECRET="<a long random value, 32+ bytes>"
+ *   application.properties: jwt.secret=${JWT_SECRET}
+ */
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret:gizliAnahtarEduConnect12345678901234567890}")
+    private static final int MIN_SECRET_BYTES = 32; // HS256 requires >= 256 bits
+
+    @Value("${jwt.secret}")
     private String secretKey;
 
     private Key key;
-    private final long EXPIRATION_TIME = 1000 * 60 * 60 * 10;
+    private final long expirationTimeMillis = 1000L * 60 * 60 * 10; // 10 hours
 
     @PostConstruct
     public void initKey() {
-        this.key = Keys.hmacShaKeyFor(secretKey.getBytes());
+        if (secretKey == null || secretKey.isBlank()) {
+            throw new IllegalStateException(
+                    "jwt.secret is not configured. Set the JWT_SECRET environment variable " +
+                            "(or jwt.secret property) before starting the application.");
+        }
+        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                    "jwt.secret is too short (" + keyBytes.length + " bytes). " +
+                            "It must be at least " + MIN_SECRET_BYTES + " bytes for HS256.");
+        }
+        this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
-    // --- BİLET (TOKEN) BASMA İŞLEMİ ---
     public String generateToken(UserDetails userDetails) {
         String role = userDetails.getAuthorities().stream()
                 .findFirst()
                 .map(auth -> auth.getAuthority())
                 .orElse("");
-
         return generateToken(userDetails.getUsername(), role);
     }
 
@@ -50,14 +76,11 @@ public class JwtUtil {
                 .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .setExpiration(new Date(System.currentTimeMillis() + expirationTimeMillis))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    // --- BİLET OKUMA VE DOĞRULAMA İŞLEMLERİ ---
-
-    // 🚀 YENİ: İhtiyaç halinde biletin içindeki rütbeyi şak diye çözen metot
     public String extractRole(String token) {
         return extractClaim(token, claims -> claims.get("role", String.class));
     }
@@ -76,7 +99,7 @@ public class JwtUtil {
 
     public boolean validateToken(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {

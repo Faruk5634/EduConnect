@@ -3,44 +3,72 @@ package com.educonnect.service;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
+/**
+ * 🚀 DRY FIX: AnnouncementService used to reimplement this exact same
+ * "create dir if missing, prefix with a UUID, copy the file" logic inline,
+ * with its own separate uploads/announcements/ directory. Two copies of the
+ * same infrastructure concern, in two different layers, meant a future
+ * change (e.g. moving to S3) would have had to happen twice.
+ *
+ * This is now the ONLY place that touches the filesystem for uploads.
+ * Callers pass a logical subdirectory ("", "announcements", ...) and get
+ * back both the stored filename and the public URL to save on the entity.
+ */
 @Service
 public class FileStorageService {
 
-    // Dosyaların kaydedileceği klasörün adı (Projenin ana dizininde oluşacak)
-    private final String UPLOAD_DIR = "uploads/";
+    private static final String BASE_UPLOAD_DIR = "uploads";
 
-    public FileStorageService() {
-        // Sistem ilk çalıştığında eğer "uploads" adında bir klasör yoksa, otomatik olarak oluşturur
-        File directory = new File(UPLOAD_DIR);
-        if (!directory.exists()) {
-            directory.mkdirs();
-        }
+    public StoredFile storeFile(MultipartFile file) throws IOException {
+        return storeFile(file, "");
     }
 
-    // Dosyayı alıp klasöre kaydeden ve yeni dosya adını döndüren metot
-    public String storeFile(MultipartFile file) throws IOException {
-        if (file.isEmpty()) {
+    public StoredFile storeFile(MultipartFile file, String subDirectory) throws IOException {
+        if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Boş dosya yüklenemez!");
         }
 
-        // Aynı isimde iki dosya çakışmasın diye dosyanın başına rastgele benzersiz bir kod (UUID) ekliyoruz
+        String normalizedSubDir = (subDirectory == null || subDirectory.isBlank()) ? "" : subDirectory.trim();
+        Path uploadPath = normalizedSubDir.isEmpty()
+                ? Paths.get(BASE_UPLOAD_DIR)
+                : Paths.get(BASE_UPLOAD_DIR, normalizedSubDir);
+
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
+
         String originalFileName = file.getOriginalFilename();
-        String uniqueFileName = UUID.randomUUID().toString() + "_" + originalFileName;
+        String uniqueFileName = UUID.randomUUID() + "_" + originalFileName;
+        Path filePath = uploadPath.resolve(uniqueFileName);
 
-        // Dosyanın tam olarak nereye kaydedileceğini belirliyoruz (Örn: uploads/1234-5678_vesikalik.jpg)
-        Path filePath = Paths.get(UPLOAD_DIR + uniqueFileName);
+        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
-        // Dosyayı fiziksel olarak o klasöre kopyalıyoruz
-        Files.copy(file.getInputStream(), filePath);
+        String publicUrl = "/" + BASE_UPLOAD_DIR + "/"
+                + (normalizedSubDir.isEmpty() ? "" : normalizedSubDir + "/")
+                + uniqueFileName;
 
-        // Sadece yeni dosya adını geri dönüyoruz ki veritabanına bunu kaydedelim
-        return uniqueFileName;
+        return new StoredFile(originalFileName, uniqueFileName, publicUrl);
+    }
+
+    public void deleteFile(String publicUrl) throws IOException {
+        if (publicUrl == null || publicUrl.isBlank()) {
+            return;
+        }
+        String relative = publicUrl.startsWith("/") ? publicUrl.substring(1) : publicUrl;
+        Files.deleteIfExists(Paths.get(relative));
+    }
+
+    /**
+     * Result of a successful upload: the name the user originally gave the file,
+     * the unique name it was actually stored under, and the URL to serve it from.
+     */
+    public record StoredFile(String originalFileName, String storedFileName, String publicUrl) {
     }
 }

@@ -1,11 +1,13 @@
 package com.educonnect.service;
 
 import com.educonnect.dto.CreateAdminRequest;
+import com.educonnect.exception.ResourceNotFoundException;
 import com.educonnect.model.Role;
 import com.educonnect.model.School;
 import com.educonnect.model.User;
 import com.educonnect.repository.SchoolRepository;
 import com.educonnect.repository.UserRepository;
+import com.educonnect.security.PasswordChangeSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,6 +27,7 @@ public class AdminManagementService {
     private final UserRepository userRepository;
     private final SchoolRepository schoolRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordChangeSupport passwordChangeSupport;
 
     public String createSchoolAdmin(CreateAdminRequest request) {
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
@@ -33,11 +37,10 @@ public class AdminManagementService {
         School school = null;
         if (request.getSchoolId() != null) {
             school = schoolRepository.findById(request.getSchoolId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Belirtilen okul bulunamadı!"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Belirtilen okul bulunamadı!"));
         }
 
-        Role assignedRole = (request.getRole() != null && request.getRole().equals("ROLE_VICE_ADMIN"))
-                ? Role.ROLE_VICE_ADMIN : Role.ROLE_ADMIN;
+        Role assignedRole = resolveRole(request.getRole());
 
         User newAdmin = User.builder()
                 .username(request.getUsername())
@@ -60,29 +63,31 @@ public class AdminManagementService {
     public List<Map<String, Object>> getAllAdmins() {
         return userRepository.findAll().stream()
                 .filter(u -> u.getRole() == Role.ROLE_ADMIN || u.getRole() == Role.ROLE_VICE_ADMIN)
-                .map(u -> Map.of(
-                        "id", u.getId(),
-                        "username", u.getUsername(),
-                        "firstName", u.getFirstName() != null ? u.getFirstName() : "",
-                        "lastName", u.getLastName() != null ? u.getLastName() : "",
-                        "phone", u.getPhone() != null ? u.getPhone() : "",
-                        "email", u.getEmail() != null ? u.getEmail() : "",
-                        "role", u.getRole().name(),
-                        "schoolId", u.getSchool() != null ? u.getSchool().getId() : "",
-                        "schoolName", u.getSchool() != null ? u.getSchool().getName() : "Boşta"
-                ))
+                .map(u -> {
+                    Map<String, Object> adminData = new HashMap<>();
+                    adminData.put("id", u.getId());
+                    adminData.put("username", u.getUsername());
+                    adminData.put("firstName", u.getFirstName() != null ? u.getFirstName() : "");
+                    adminData.put("lastName", u.getLastName() != null ? u.getLastName() : "");
+                    adminData.put("phone", u.getPhone() != null ? u.getPhone() : "");
+                    adminData.put("email", u.getEmail() != null ? u.getEmail() : "");
+                    adminData.put("role", u.getRole().name());
+                    adminData.put("schoolId", u.getSchool() != null ? u.getSchool().getId() : "");
+                    adminData.put("schoolName", u.getSchool() != null ? u.getSchool().getName() : "Boşta");
+                    return adminData;
+                })
                 .toList();
     }
 
     public void updateAdmin(Long id, CreateAdminRequest request, String currentUsername) {
         User admin = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Yönetici bulunamadı!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Yönetici bulunamadı!"));
 
         admin.setFirstName(request.getFirstName());
         admin.setLastName(request.getLastName());
         admin.setPhone(request.getPhone());
         admin.setEmail(request.getEmail());
-        admin.setRole(request.getRole() != null && request.getRole().equals("ROLE_VICE_ADMIN") ? Role.ROLE_VICE_ADMIN : Role.ROLE_ADMIN);
+        admin.setRole(resolveRole(request.getRole()));
 
         if (request.getSchoolId() != null) {
             School school = schoolRepository.findById(request.getSchoolId()).orElse(null);
@@ -92,13 +97,15 @@ public class AdminManagementService {
         }
 
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
-            if (currentUsername != null) {
-                User currentUser = userRepository.findByUsername(currentUsername).orElseThrow();
-                if (currentUser.getId().equals(id)) {
-                    if (request.getCurrentPassword() == null || !passwordEncoder.matches(request.getCurrentPassword(), currentUser.getPassword())) {
-                        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mevcut şifre yanlış.");
-                    }
-                }
+            // Only require current-password verification when admins are
+            // changing THEIR OWN password, not when they reset someone else's.
+            boolean isSelfChange = currentUsername != null
+                    && userRepository.findByUsername(currentUsername)
+                    .map(u -> u.getId().equals(id))
+                    .orElse(false);
+
+            if (isSelfChange) {
+                passwordChangeSupport.verifyCurrentPassword(request.getCurrentPassword(), admin.getPassword());
             }
             admin.setPassword(passwordEncoder.encode(request.getPassword()));
         }
@@ -107,5 +114,9 @@ public class AdminManagementService {
 
     public void deleteAdmin(Long id) {
         userRepository.deleteById(id);
+    }
+
+    private Role resolveRole(Role requested) {
+        return requested == Role.ROLE_VICE_ADMIN ? Role.ROLE_VICE_ADMIN : Role.ROLE_ADMIN;
     }
 }

@@ -1,45 +1,29 @@
 package com.educonnect.controller;
 
 import com.educonnect.dto.TeacherDTO;
+import com.educonnect.dto.TeacherRequest;
 import com.educonnect.model.Teacher;
 import com.educonnect.service.TeacherService;
-import lombok.Data;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
 import java.security.Principal;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/teachers")
-@RequiredArgsConstructor // 🚀 MİMARİ DOKUNUŞ: Manuel constructor silindi!
+@RequiredArgsConstructor
 public class TeacherController {
 
     private final TeacherService teacherService;
 
-    // 🚀 DOKUNUŞ: Tüm manuel get/set metotları @Data ile tek satıra indirildi
-    @Data
-    public static class TeacherRequest {
-        private String firstName;
-        private String lastName;
-        private String branch;
-        private String username;
-        private String password;
-        private String phone;
-        private String email;
-    }
-
+    @PreAuthorize("hasAnyRole('ADMIN','VICE_ADMIN','SUPER_ADMIN')")
     @PostMapping
-    public Teacher createTeacher(@RequestBody TeacherRequest request) {
-        Teacher teacher = new Teacher();
-        teacher.setFirstName(request.getFirstName());
-        teacher.setLastName(request.getLastName());
-        teacher.setBranch(request.getBranch());
-        teacher.setUsername(request.getUsername());
-        teacher.setPassword(request.getPassword());
-        teacher.setPhone(request.getPhone());
-        teacher.setEmail(request.getEmail());
-        return teacherService.createTeacherWithUser(teacher);
+    public Teacher createTeacher(@Valid @RequestBody TeacherRequest request) {
+        return teacherService.createTeacherWithUser(request);
     }
 
     @GetMapping
@@ -57,26 +41,21 @@ public class TeacherController {
         return teacherService.getTeacherProfileByUsername(principal.getName());
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','VICE_ADMIN','SUPER_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTeacher(@PathVariable Long id) {
         teacherService.deleteTeacher(id);
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','VICE_ADMIN','SUPER_ADMIN')")
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateTeacher(@PathVariable Long id, @RequestBody TeacherRequest request) {
-        Teacher teacher = new Teacher();
-        teacher.setFirstName(request.getFirstName());
-        teacher.setLastName(request.getLastName());
-        teacher.setBranch(request.getBranch());
-        teacher.setUsername(request.getUsername());
-        teacher.setPassword(request.getPassword());
-        teacher.setPhone(request.getPhone());
-        teacher.setEmail(request.getEmail());
-        teacherService.updateTeacher(id, teacher);
+    public ResponseEntity<?> updateTeacher(@PathVariable Long id, @Valid @RequestBody TeacherRequest request) {
+        teacherService.updateTeacher(id, request);
         return ResponseEntity.ok().build();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','VICE_ADMIN','SUPER_ADMIN')")
     @PostMapping("/complete-profile/{username}")
     public Teacher completeProfile(@PathVariable String username, @RequestBody Teacher teacherProfile) {
         return teacherService.createProfileForExistingUser(username, teacherProfile);

@@ -1,14 +1,14 @@
 package com.educonnect.service;
 
+import com.educonnect.exception.ResourceNotFoundException;
 import com.educonnect.model.User;
 import com.educonnect.repository.UserRepository;
+import com.educonnect.security.PasswordChangeSupport;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,16 +20,17 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordChangeSupport passwordChangeSupport; // 🚀 was duplicated inline before
 
     public User getCurrentUser() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kullanıcı bulunamadı"));
+                .orElseThrow(() -> new ResourceNotFoundException("Kullanıcı bulunamadı"));
     }
 
     public Map<String, Object> getCurrentUserProfile(String username) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kullanıcı bulunamadı"));
+                .orElseThrow(() -> new ResourceNotFoundException("Kullanıcı bulunamadı"));
 
         Map<String, Object> response = new HashMap<>();
         response.put("id", user.getId());
@@ -52,7 +53,7 @@ public class UserService {
 
     public void updateCurrentUserProfile(String username, Map<String, Object> body) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kullanıcı bulunamadı"));
+                .orElseThrow(() -> new ResourceNotFoundException("Kullanıcı bulunamadı"));
 
         if (body.containsKey("firstName")) user.setFirstName((String) body.get("firstName"));
         if (body.containsKey("lastName")) user.setLastName((String) body.get("lastName"));
@@ -62,13 +63,8 @@ public class UserService {
         if (body.containsKey("password")) {
             String pw = (String) body.get("password");
             if (pw != null && !pw.isEmpty()) {
-                if (!body.containsKey("currentPassword") || body.get("currentPassword") == null) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mevcut şifre sağlanmadı.");
-                }
                 String currentPw = (String) body.get("currentPassword");
-                if (!passwordEncoder.matches(currentPw, user.getPassword())) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mevcut şifre yanlış.");
-                }
+                passwordChangeSupport.verifyCurrentPassword(currentPw, user.getPassword());
                 user.setPassword(passwordEncoder.encode(pw));
             }
         }

@@ -1,68 +1,48 @@
 package com.educonnect.controller;
 
 import com.educonnect.dto.ParentDTO;
+import com.educonnect.dto.ParentRequest;
 import com.educonnect.model.Parent;
 import com.educonnect.service.ParentService;
-import lombok.Data;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
 
 import java.security.Principal;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/parents")
-@RequiredArgsConstructor // 🚀 MİMARİ DOKUNUŞ: Uzun Constructor bloğunu sildi!
+@RequiredArgsConstructor
 public class ParentController {
 
     private final ParentService parentService;
 
-    // 🚀 DOKUNUŞ: Tüm manuel get/set metotları @Data ile tek satıra indirildi
-    @Data
-    public static class ParentRequest {
-        private String firstName;
-        private String lastName;
-        private String email;
-        private String phoneNumber;
-        private String username;
-        private String password;
-    }
-
+    @PreAuthorize("hasAnyRole('ADMIN','VICE_ADMIN','SUPER_ADMIN')")
     @PostMapping
     public Parent createParent(@Valid @RequestBody ParentRequest request) {
-        Parent parent = new Parent();
-        parent.setFirstName(request.getFirstName());
-        parent.setLastName(request.getLastName());
-        parent.setEmail(request.getEmail());
-        parent.setPhoneNumber(request.getPhoneNumber());
-        parent.setUsername(request.getUsername());
-        parent.setPassword(request.getPassword());
-        return parentService.createParentWithUser(parent);
+        return parentService.createParentWithUser(request);
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','VICE_ADMIN','SUPER_ADMIN','TEACHER')")
     @GetMapping
     public List<ParentDTO> getAllParents() {
         return parentService.getAllParents();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','VICE_ADMIN','SUPER_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteParent(@PathVariable Long id) {
         parentService.deleteParent(id);
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','VICE_ADMIN','SUPER_ADMIN')")
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateParent(@PathVariable Long id, @RequestBody ParentRequest request) {
-        Parent parent = new Parent();
-        parent.setFirstName(request.getFirstName());
-        parent.setLastName(request.getLastName());
-        parent.setEmail(request.getEmail());
-        parent.setPhoneNumber(request.getPhoneNumber());
-        parent.setUsername(request.getUsername());
-        parent.setPassword(request.getPassword());
-        parentService.updateParent(id, parent);
+    public ResponseEntity<?> updateParent(@PathVariable Long id, @Valid @RequestBody ParentRequest request) {
+        parentService.updateParent(id, request);
         return ResponseEntity.ok().build();
     }
 

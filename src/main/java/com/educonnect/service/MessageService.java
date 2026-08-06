@@ -1,6 +1,7 @@
 package com.educonnect.service;
 
 import com.educonnect.dto.MessageRequest;
+import com.educonnect.exception.ResourceNotFoundException;
 import com.educonnect.model.Message;
 import com.educonnect.model.Role;
 import com.educonnect.model.School;
@@ -25,6 +26,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MessageService {
 
+    // 🚀 DRY / readability: named instead of repeated as bare string literals.
+    private static final String TARGET_ALL_ADMINS = "ALL";
+    private static final String TARGET_SUPER_ADMIN = "SUPER_ADMIN";
+
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
     private final UserService userService;
@@ -32,22 +37,22 @@ public class MessageService {
     public void sendMessage(MessageRequest request) {
         User sender = userService.getCurrentUser();
 
-        if ("ALL".equals(request.getReceiverId())) {
-            List<User> admins = userRepository.findAll().stream()
-                    .filter(u -> u.getRole() == Role.ROLE_ADMIN || u.getRole() == Role.ROLE_VICE_ADMIN)
-                    .toList();
-            for (User admin : admins) {
-                saveMessage(sender, admin, request.getSubject(), request.getContent());
+        switch (request.getReceiverId()) {
+            case TARGET_ALL_ADMINS -> {
+                List<User> admins = userRepository.findByRoleIn(List.of(Role.ROLE_ADMIN, Role.ROLE_VICE_ADMIN));
+                admins.forEach(admin -> saveMessage(sender, admin, request.getSubject(), request.getContent()));
             }
-        } else if ("SUPER_ADMIN".equals(request.getReceiverId())) {
-            User superAdmin = userRepository.findAll().stream()
-                    .filter(u -> u.getRole() == Role.ROLE_SUPER_ADMIN)
-                    .findFirst().orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Super Admin bulunamadı!"));
-            saveMessage(sender, superAdmin, request.getSubject(), request.getContent());
-        } else {
-            User receiver = userRepository.findById(Long.parseLong(request.getReceiverId()))
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Alıcı bulunamadı!"));
-            saveMessage(sender, receiver, request.getSubject(), request.getContent());
+            case TARGET_SUPER_ADMIN -> {
+                User superAdmin = userRepository.findFirstByRole(Role.ROLE_SUPER_ADMIN)
+                        .orElseThrow(() -> new ResourceNotFoundException("Super Admin bulunamadı!"));
+                saveMessage(sender, superAdmin, request.getSubject(), request.getContent());
+            }
+            default -> {
+                Long receiverId = parseReceiverId(request.getReceiverId());
+                User receiver = userRepository.findById(receiverId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Alıcı bulunamadı!"));
+                saveMessage(sender, receiver, request.getSubject(), request.getContent());
+            }
         }
     }
 
@@ -71,7 +76,6 @@ public class MessageService {
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
 
         List<Map<String, Object>> formattedMessages = new ArrayList<>();
-
         for (Message m : rawMessages) {
             Map<String, Object> map = new HashMap<>();
             map.put("id", m.getId());
@@ -96,7 +100,7 @@ public class MessageService {
 
     public void markAsRead(Long id) {
         Message msg = messageRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mesaj bulunamadı"));
+                .orElseThrow(() -> new ResourceNotFoundException("Mesaj bulunamadı"));
         msg.setRead(true);
         messageRepository.save(msg);
     }
@@ -111,7 +115,11 @@ public class MessageService {
 
         String searchKey = keyword.toLowerCase();
 
-        List<User> filteredUsers = userRepository.findAll().stream()
+        List<User> candidates = mySchool != null
+                ? userRepository.findBySchool_IdOrRole(mySchool.getId(), Role.ROLE_SUPER_ADMIN)
+                : userRepository.findByRoleIn(List.of(Role.ROLE_SUPER_ADMIN));
+
+        List<User> filteredUsers = candidates.stream()
                 .filter(u -> !u.getId().equals(currentUser.getId()))
                 .filter(u -> {
                     String fullName = (u.getFirstName() + " " + u.getLastName()).toLowerCase();
@@ -119,16 +127,10 @@ public class MessageService {
                     return fullName.contains(searchKey) || uname.contains(searchKey);
                 })
                 .filter(u -> {
-                    boolean isSameSchool = (u.getSchool() != null && mySchool != null && u.getSchool().getId().equals(mySchool.getId()))
-                            || u.getRole() == Role.ROLE_SUPER_ADMIN;
-
-                    if (!isSameSchool) return false;
-
                     if (currentUser.getRole() == Role.ROLE_PARENT || currentUser.getRole() == Role.ROLE_STUDENT) {
                         return u.getRole() == Role.ROLE_TEACHER || u.getRole() == Role.ROLE_ADMIN || u.getRole() == Role.ROLE_VICE_ADMIN;
-                    } else {
-                        return true;
                     }
+                    return true;
                 })
                 .limit(10)
                 .toList();
@@ -145,12 +147,19 @@ public class MessageService {
                 case ROLE_PARENT -> "Veli";
                 case ROLE_ADMIN, ROLE_VICE_ADMIN -> "İdareci";
                 case ROLE_SUPER_ADMIN -> "Sistem Yöneticisi";
-                default -> "Kullanıcı";
             };
 
             map.put("role", roleStr);
             result.add(map);
         }
         return result;
+    }
+
+    private Long parseReceiverId(String receiverId) {
+        try {
+            return Long.parseLong(receiverId);
+        } catch (NumberFormatException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Geçersiz alıcı kimliği.");
+        }
     }
 }

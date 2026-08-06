@@ -13,11 +13,13 @@ import java.util.Optional;
 public interface ClassroomRepository extends JpaRepository<Classroom, Long> {
     List<Classroom> findByHomeroomTeacher(Teacher teacher);
 
-    // 🚨 SAATLİ BOMBA İMHA EDİLDİ: Sadece isme göre aramak yerine, "O okulun o isimdeki sınıfını" arıyoruz
+    // Scoped to school, so two schools can each have their own "9-A" etc.
     Optional<Classroom> findByNameAndSchool(String name, School school);
 
-    // Geriye dönük uyumluluk için (İleride tamamen sileceğiz)
-    Optional<Classroom> findByName(String name);
+    // 🚀 REMOVED: findByName(String name) — the old, unscoped lookup that
+    // findByNameAndSchool replaced. It was marked "for backward
+    // compatibility, delete later" and nothing in the service layer called
+    // it anymore.
 
     long countBySchool(School school);
     List<Classroom> findBySchool(School school);
