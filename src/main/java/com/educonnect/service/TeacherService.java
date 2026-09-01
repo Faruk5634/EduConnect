@@ -3,8 +3,10 @@ package com.educonnect.service;
 import com.educonnect.dto.TeacherDTO;
 import com.educonnect.dto.TeacherRequest;
 import com.educonnect.exception.ResourceNotFoundException;
+import com.educonnect.mapper.TeacherMapper;
 import com.educonnect.model.Classroom;
 import com.educonnect.model.Role;
+import com.educonnect.model.School;
 import com.educonnect.model.Teacher;
 import com.educonnect.model.User;
 import com.educonnect.repository.ClassroomRepository;
@@ -33,8 +35,28 @@ public class TeacherService {
     private final UsernameService usernameService;
     private final UserProvisioningService userProvisioningService; // 🚀 replaces duplicated account-creation logic
 
+    private School getTenantSchool(User user) {
+        if (user.getRole() == Role.ROLE_SUPER_ADMIN) {
+            return null;
+        }
+        if (user.getSchool() == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu kullanıcının atanmış bir okulu yok.");
+        }
+        return user.getSchool();
+    }
+
+    private void assertTeacherBelongsToTenant(Teacher teacher, School tenantSchool) {
+        if (tenantSchool == null) {
+            return;
+        }
+        if (teacher.getUser() == null || teacher.getUser().getSchool() == null || !tenantSchool.getId().equals(teacher.getUser().getSchool().getId())) {
+            throw new ResourceNotFoundException("Öğretmen bulunamadı!");
+        }
+    }
+
     public Teacher createTeacherWithUser(TeacherRequest request) {
         User admin = userService.getCurrentUser();
+        School tenantSchool = getTenantSchool(admin);
 
         User savedUser = userProvisioningService.provisionUser(
                 request.getUsername(),
@@ -44,7 +66,7 @@ public class TeacherService {
                 request.getPhone(),
                 request.getEmail(),
                 Role.ROLE_TEACHER,
-                admin.getSchool()
+                tenantSchool != null ? tenantSchool : admin.getSchool()
         );
 
         Teacher teacher = new Teacher();
@@ -58,55 +80,36 @@ public class TeacherService {
 
     public List<TeacherDTO> getAllTeachers() {
         User admin = userService.getCurrentUser();
-        return teacherRepository.findByUserSchool(admin.getSchool()).stream()
-                .map(this::convertToDTO)
+        School tenantSchool = getTenantSchool(admin);
+        return (tenantSchool != null ? teacherRepository.findByUserSchool(tenantSchool) : teacherRepository.findAll())
+                .stream()
+                .map(TeacherMapper::toDto)
                 .collect(Collectors.toList());
     }
 
-    private TeacherDTO convertToDTO(Teacher teacher) {
-        List<TeacherDTO.ClassroomInfo> classInfos = teacher.getHomeroomClasses() != null
-                ? teacher.getHomeroomClasses().stream()
-                  .map(c -> new TeacherDTO.ClassroomInfo(c.getId(), c.getName()))
-                  .collect(Collectors.toList())
-                : List.of();
-
-        String username = null;
-        String phone = null;
-        String email = null;
-        if (teacher.getUser() != null) {
-            username = teacher.getUser().getUsername();
-            phone = teacher.getUser().getPhone();
-            email = teacher.getUser().getEmail();
-        }
-
-        return new TeacherDTO(
-                teacher.getId(),
-                teacher.getFirstName(),
-                teacher.getLastName(),
-                teacher.getBranch(),
-                username,
-                phone,
-                email,
-                classInfos
-        );
-    }
-
     public List<TeacherDTO> searchTeachersByBranch(String branch) {
-        return teacherRepository.findByBranchContainingIgnoreCase(branch)
+        User admin = userService.getCurrentUser();
+        School tenantSchool = getTenantSchool(admin);
+        return (tenantSchool != null
+                ? teacherRepository.findByUserSchoolAndBranchContainingIgnoreCase(tenantSchool, branch)
+                : teacherRepository.findByBranchContainingIgnoreCase(branch))
                 .stream()
-                .map(this::convertToDTO)
+                .map(TeacherMapper::toDto)
                 .collect(Collectors.toList());
     }
 
     public TeacherDTO getTeacherProfileByUsername(String username) {
         Teacher teacher = teacherRepository.findByUserUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Bu kullanıcıya ait öğretmen profili bulunamadı."));
-        return convertToDTO(teacher);
+        return TeacherMapper.toDto(teacher);
     }
 
     public void deleteTeacher(Long id) {
+        User admin = userService.getCurrentUser();
+        School tenantSchool = getTenantSchool(admin);
         Teacher teacher = teacherRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Öğretmen bulunamadı!"));
+        assertTeacherBelongsToTenant(teacher, tenantSchool);
 
         List<Classroom> classrooms = classroomRepository.findByHomeroomTeacher(teacher);
         for (Classroom cls : classrooms) {
@@ -118,8 +121,11 @@ public class TeacherService {
     }
 
     public void updateTeacher(Long id, TeacherRequest request) {
+        User admin = userService.getCurrentUser();
+        School tenantSchool = getTenantSchool(admin);
         Teacher existingTeacher = teacherRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Öğretmen bulunamadı!"));
+        assertTeacherBelongsToTenant(existingTeacher, tenantSchool);
 
         existingTeacher.setFirstName(request.getFirstName());
         existingTeacher.setLastName(request.getLastName());
@@ -155,7 +161,17 @@ public class TeacherService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu hesabın zaten bir öğretmen profili var!");
         }
 
+        User admin = userService.getCurrentUser();
+        School tenantSchool = getTenantSchool(admin);
+        if (tenantSchool != null && (existingUser.getSchool() == null || !tenantSchool.getId().equals(existingUser.getSchool().getId()))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu kullanıcı farklı bir okula ait.");
+        }
+
         teacherProfile.setUser(existingUser);
+        if (tenantSchool != null && existingUser.getSchool() == null) {
+            existingUser.setSchool(tenantSchool);
+            userRepository.save(existingUser);
+        }
         return teacherRepository.save(teacherProfile);
     }
 }

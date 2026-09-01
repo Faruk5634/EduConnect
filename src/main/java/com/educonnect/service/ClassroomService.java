@@ -2,10 +2,12 @@ package com.educonnect.service;
 
 import com.educonnect.dto.ClassroomDTO;
 import com.educonnect.exception.ResourceNotFoundException;
+import com.educonnect.mapper.ClassroomMapper;
 import com.educonnect.model.Announcement;
 import com.educonnect.model.Classroom;
 import com.educonnect.model.Student;
 import com.educonnect.model.Teacher;
+import com.educonnect.model.School;
 import com.educonnect.model.User;
 import com.educonnect.repository.AnnouncementRepository;
 import com.educonnect.repository.ClassroomRepository;
@@ -29,23 +31,47 @@ public class ClassroomService {
     private final TeacherRepository teacherRepository;
     private final UserService userService;
 
+    private School getTenantSchool(User user) {
+        if (user.getRole() == com.educonnect.model.Role.ROLE_SUPER_ADMIN) {
+            return null;
+        }
+        if (user.getSchool() == null) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Bu kullanıcının atanmış bir okulu yok.");
+        }
+        return user.getSchool();
+    }
+
+    private Classroom getClassroomOrThrow(Long id, School tenantSchool) {
+        return tenantSchool != null
+                ? classroomRepository.findByIdAndSchool(id, tenantSchool).orElseThrow(() -> new ResourceNotFoundException("Sınıf bulunamadı!"))
+                : classroomRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Sınıf bulunamadı!"));
+    }
+
     public Classroom createClassroom(Classroom classroom) {
         User admin = userService.getCurrentUser();
-        classroom.setSchool(admin.getSchool());
+        School tenantSchool = getTenantSchool(admin);
+        classroom.setSchool(tenantSchool != null ? tenantSchool : admin.getSchool());
         return classroomRepository.save(classroom);
     }
 
     public List<ClassroomDTO> getAllClassrooms() {
         User admin = userService.getCurrentUser();
-        return classroomRepository.findBySchool(admin.getSchool()).stream()
-                .map(this::convertToDTO)
+        School tenantSchool = getTenantSchool(admin);
+        return (tenantSchool != null ? classroomRepository.findBySchool(tenantSchool) : classroomRepository.findAll())
+                .stream()
+                .map(ClassroomMapper::toDto)
                 .collect(Collectors.toList());
     }
 
     public Classroom addStudentToClass(Long classId, Long studentId) {
-        Classroom classroom = getClassroomOrThrow(classId);
+        User admin = userService.getCurrentUser();
+        School tenantSchool = getTenantSchool(admin);
+        Classroom classroom = getClassroomOrThrow(classId, tenantSchool);
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Öğrenci bulunamadı"));
+        if (tenantSchool != null && (student.getSchool() == null || !tenantSchool.getId().equals(student.getSchool().getId()))) {
+            throw new ResourceNotFoundException("Öğrenci bulunamadı");
+        }
 
         classroom.getStudents().add(student);
         return classroomRepository.save(classroom);
@@ -61,9 +87,14 @@ public class ClassroomService {
      * announcement instead.
      */
     public Classroom addAnnouncementToClass(Long classId, Long announcementId) {
-        Classroom classroom = getClassroomOrThrow(classId);
+        User admin = userService.getCurrentUser();
+        School tenantSchool = getTenantSchool(admin);
+        Classroom classroom = getClassroomOrThrow(classId, tenantSchool);
         Announcement announcement = announcementRepository.findById(announcementId)
                 .orElseThrow(() -> new ResourceNotFoundException("Duyuru bulunamadı"));
+        if (tenantSchool != null && (announcement.getSchool() == null || !tenantSchool.getId().equals(announcement.getSchool().getId()))) {
+            throw new ResourceNotFoundException("Duyuru bulunamadı");
+        }
 
         announcement.getClassrooms().add(classroom);
         announcementRepository.save(announcement);
@@ -72,34 +103,23 @@ public class ClassroomService {
     }
 
     public Classroom assignTeacherToClassroom(Long classId, Long teacherId) {
-        Classroom classroom = getClassroomOrThrow(classId);
+        User admin = userService.getCurrentUser();
+        School tenantSchool = getTenantSchool(admin);
+        Classroom classroom = getClassroomOrThrow(classId, tenantSchool);
         Teacher teacher = teacherRepository.findById(teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("Öğretmen bulunamadı!"));
+        if (tenantSchool != null && (teacher.getUser() == null || teacher.getUser().getSchool() == null || !tenantSchool.getId().equals(teacher.getUser().getSchool().getId()))) {
+            throw new ResourceNotFoundException("Öğretmen bulunamadı!");
+        }
 
         classroom.setHomeroomTeacher(teacher);
         return classroomRepository.save(classroom);
     }
 
-    private ClassroomDTO convertToDTO(Classroom classroom) {
-        String teacherName = (classroom.getHomeroomTeacher() != null)
-                ? classroom.getHomeroomTeacher().getFirstName() + " " + classroom.getHomeroomTeacher().getLastName()
-                : "Rehber Öğretmen Atanmadı";
-
-        List<String> studentNames = classroom.getStudents() != null
-                ? classroom.getStudents().stream().map(s -> s.getFirstName() + " " + s.getLastName()).collect(Collectors.toList())
-                : List.of();
-
-        return new ClassroomDTO(
-                classroom.getId(),
-                classroom.getName(),
-                classroom.getGradeLevel(),
-                teacherName,
-                studentNames
-        );
-    }
-
     public void deleteClassroom(Long id) {
-        Classroom classroom = getClassroomOrThrow(id);
+        User admin = userService.getCurrentUser();
+        School tenantSchool = getTenantSchool(admin);
+        Classroom classroom = getClassroomOrThrow(id, tenantSchool);
 
         classroom.setHomeroomTeacher(null);
         classroomRepository.save(classroom);
@@ -114,7 +134,9 @@ public class ClassroomService {
     }
 
     public void updateClassroom(Long id, Classroom updatedClassroom, Long teacherId) {
-        Classroom existing = getClassroomOrThrow(id);
+        User admin = userService.getCurrentUser();
+        School tenantSchool = getTenantSchool(admin);
+        Classroom existing = getClassroomOrThrow(id, tenantSchool);
 
         existing.setName(updatedClassroom.getName());
         existing.setGradeLevel(updatedClassroom.getGradeLevel());
@@ -122,16 +144,14 @@ public class ClassroomService {
         if (teacherId != null) {
             Teacher teacher = teacherRepository.findById(teacherId)
                     .orElseThrow(() -> new ResourceNotFoundException("Öğretmen bulunamadı!"));
+            if (tenantSchool != null && (teacher.getUser() == null || teacher.getUser().getSchool() == null || !tenantSchool.getId().equals(teacher.getUser().getSchool().getId()))) {
+                throw new ResourceNotFoundException("Öğretmen bulunamadı!");
+            }
             existing.setHomeroomTeacher(teacher);
         } else {
             existing.setHomeroomTeacher(null);
         }
 
         classroomRepository.save(existing);
-    }
-
-    private Classroom getClassroomOrThrow(Long id) {
-        return classroomRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Sınıf bulunamadı!"));
     }
 }

@@ -17,6 +17,8 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, Long
     List<Announcement> findByTypeAndSchool(AnnouncementType type, School school);
     List<Announcement> findBySchoolAndCreatedDateAfter(School school, java.time.LocalDateTime date);
     List<Announcement> findByAuthorId(Long authorId);
+    List<Announcement> findByAuthorIdAndSchool(Long authorId, School school);
+    java.util.Optional<Announcement> findByIdAndSchool(Long id, School school);
 
     // 🚀 GÜNCELLEME: Çoğa-Çok ilişki için güncel sınıf arama sorgusu
     List<Announcement> findByClassrooms_IdOrderByCreatedDateDesc(Long classroomId);

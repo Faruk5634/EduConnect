@@ -2,6 +2,7 @@ package com.educonnect.service;
 
 import com.educonnect.dto.AnnouncementDTO;
 import com.educonnect.exception.ResourceNotFoundException;
+import com.educonnect.mapper.AnnouncementMapper;
 import com.educonnect.model.*;
 import com.educonnect.repository.AnnouncementRepository;
 import com.educonnect.repository.ClassroomRepository;
@@ -36,6 +37,16 @@ public class AnnouncementService {
     private final UserService userService;
     private final FileStorageService fileStorageService; // 🚀 was duplicating this logic inline before
 
+    private School getTenantSchool(User user) {
+        if (user.getRole() == Role.ROLE_SUPER_ADMIN) {
+            return null;
+        }
+        if (user.getSchool() == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu kullanıcının atanmış bir okulu yok.");
+        }
+        return user.getSchool();
+    }
+
     /**
      * JSON-only announcement creation (no attachments). Takes the DTO, not
      * the raw entity — see AnnouncementCreateRequest for why that matters.
@@ -43,6 +54,11 @@ public class AnnouncementService {
     public Announcement createAnnouncement(com.educonnect.dto.AnnouncementCreateRequest request, String username) {
         User currentUser = userService.getCurrentUser();
         Teacher author = teacherRepository.findByUserUsername(username).orElse(null);
+        School tenantSchool = getTenantSchool(currentUser);
+
+        if (tenantSchool != null && (author == null || author.getUser() == null || author.getUser().getSchool() == null || !tenantSchool.getId().equals(author.getUser().getSchool().getId()))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu duyuruyu başka bir okul adına oluşturamazsınız.");
+        }
 
         Announcement announcement = new Announcement();
         announcement.setTitle(request.getTitle());
@@ -50,7 +66,7 @@ public class AnnouncementService {
         announcement.setType(request.getType());
         announcement.setAuthor(author);
         announcement.setCreatedDate(LocalDateTime.now());
-        announcement.setSchool(currentUser.getSchool());
+        announcement.setSchool(tenantSchool != null ? tenantSchool : currentUser.getSchool());
 
         if (request.getClassroomIds() != null && !request.getClassroomIds().isEmpty()) {
             announcement.setClassrooms(classroomRepository.findAllById(request.getClassroomIds()));
@@ -64,6 +80,11 @@ public class AnnouncementService {
                                                              String username) {
         User currentUser = userService.getCurrentUser();
         Teacher author = teacherRepository.findByUserUsername(username).orElse(null);
+        School tenantSchool = getTenantSchool(currentUser);
+
+        if (tenantSchool != null && (author == null || author.getUser() == null || author.getUser().getSchool() == null || !tenantSchool.getId().equals(author.getUser().getSchool().getId()))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu duyuruyu başka bir okul adına oluşturamazsınız.");
+        }
 
         List<AnnouncementFile> savedFiles = storeAttachments(files);
 
@@ -72,7 +93,7 @@ public class AnnouncementService {
         announcement.setContent(content);
         announcement.setType(type);
         announcement.setCreatedDate(LocalDateTime.now());
-        announcement.setSchool(currentUser.getSchool());
+        announcement.setSchool(tenantSchool != null ? tenantSchool : currentUser.getSchool());
         announcement.setAuthor(author);
         announcement.setAttachedFiles(new ArrayList<>(savedFiles));
 
@@ -107,48 +128,42 @@ public class AnnouncementService {
         return savedFiles;
     }
 
-    private AnnouncementDTO convertToDTO(Announcement a) {
-        List<String> classNames;
-        if (a.getClassrooms() != null && !a.getClassrooms().isEmpty()) {
-            classNames = a.getClassrooms().stream().map(Classroom::getName).collect(Collectors.toList());
-        } else {
-            classNames = new ArrayList<>();
-            classNames.add("Genel Duyuru");
-        }
-
-        return new AnnouncementDTO(
-                a.getId(),
-                a.getTitle(),
-                a.getContent(),
-                a.getCreatedDate(),
-                a.getAuthor() != null ? a.getAuthor().getFirstName() + " " + a.getAuthor().getLastName() : "Yönetim (Admin)",
-                a.getType(),
-                classNames,
-                a.getAttachedFiles()
-        );
-    }
-
     public List<AnnouncementDTO> getAllAnnouncements() {
         User currentUser = userService.getCurrentUser();
-        return announcementRepository.findBySchool(currentUser.getSchool()).stream()
-                .map(this::convertToDTO).collect(Collectors.toList());
+        School tenantSchool = getTenantSchool(currentUser);
+        return (tenantSchool != null ? announcementRepository.findBySchool(tenantSchool) : announcementRepository.findAll())
+                .stream()
+                .map(AnnouncementMapper::toDto).collect(Collectors.toList());
     }
 
     public List<AnnouncementDTO> getAnnouncementsByType(AnnouncementType type) {
         User currentUser = userService.getCurrentUser();
-        return announcementRepository.findByTypeAndSchool(type, currentUser.getSchool()).stream()
-                .map(this::convertToDTO).collect(Collectors.toList());
+        School tenantSchool = getTenantSchool(currentUser);
+        return (tenantSchool != null
+                ? announcementRepository.findByTypeAndSchool(type, tenantSchool)
+                : announcementRepository.findAll().stream().filter(a -> a.getType() == type).collect(Collectors.toList()))
+                .stream()
+                .map(AnnouncementMapper::toDto).collect(Collectors.toList());
     }
 
     public List<AnnouncementDTO> getAnnouncementsByAuthorId(Long authorId) {
-        return announcementRepository.findByAuthorId(authorId).stream()
-                .map(this::convertToDTO).collect(Collectors.toList());
+        User currentUser = userService.getCurrentUser();
+        School tenantSchool = getTenantSchool(currentUser);
+        return (tenantSchool != null
+                ? announcementRepository.findByAuthorIdAndSchool(authorId, tenantSchool)
+                : announcementRepository.findByAuthorId(authorId))
+                .stream()
+                .map(AnnouncementMapper::toDto).collect(Collectors.toList());
     }
 
     public List<AnnouncementDTO> getAnnouncementsAfter(LocalDateTime date) {
         User currentUser = userService.getCurrentUser();
-        return announcementRepository.findBySchoolAndCreatedDateAfter(currentUser.getSchool(), date).stream()
-                .map(this::convertToDTO).collect(Collectors.toList());
+        School tenantSchool = getTenantSchool(currentUser);
+        return (tenantSchool != null
+                ? announcementRepository.findBySchoolAndCreatedDateAfter(tenantSchool, date)
+                : announcementRepository.findAll().stream().filter(a -> a.getCreatedDate() != null && a.getCreatedDate().isAfter(date)).collect(Collectors.toList()))
+                .stream()
+                .map(AnnouncementMapper::toDto).collect(Collectors.toList());
     }
 
     /**
@@ -192,7 +207,12 @@ public class AnnouncementService {
     }
 
     public Announcement getAnnouncementById(Long id) {
-        return announcementRepository.findById(id)
+        User currentUser = userService.getCurrentUser();
+        School tenantSchool = getTenantSchool(currentUser);
+        return tenantSchool != null
+                ? announcementRepository.findByIdAndSchool(id, tenantSchool)
+                .orElseThrow(() -> new ResourceNotFoundException("Duyuru bulunamadı: " + id))
+                : announcementRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Duyuru bulunamadı: " + id));
     }
 }
