@@ -9,12 +9,13 @@ import com.educonnect.model.Role;
 import com.educonnect.model.School;
 import com.educonnect.model.User;
 import com.educonnect.repository.ParentRepository;
+import com.educonnect.repository.SchoolRepository;
 import com.educonnect.repository.UserRepository;
+import com.educonnect.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,33 +27,20 @@ public class ParentService {
 
     private final ParentRepository parentRepository;
     private final UserRepository userRepository;
+    private final SchoolRepository schoolRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserService userService;
     private final UsernameService usernameService;
-    private final UserProvisioningService userProvisioningService; // 🚀 replaces duplicated account-creation logic
+    private final UserProvisioningService userProvisioningService;
 
-    private School getTenantSchool(User user) {
-        if (user.getRole() == Role.ROLE_SUPER_ADMIN) {
-            return null;
-        }
-        if (user.getSchool() == null) {
-            throw new ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Bu kullanıcının atanmış bir okulu yok.");
-        }
-        return user.getSchool();
-    }
-
-    private void assertParentBelongsToTenant(Parent parent, School tenantSchool) {
-        if (tenantSchool == null) {
-            return;
-        }
-        if (parent.getUser() == null || parent.getUser().getSchool() == null || !tenantSchool.getId().equals(parent.getUser().getSchool().getId())) {
-            throw new ResourceNotFoundException("Veli bulunamadı!");
-        }
+    private School getCurrentSchool() {
+        Long tenantId = TenantContext.getCurrentTenant();
+        if (tenantId == null) return null;
+        return schoolRepository.getReferenceById(tenantId);
     }
 
     public Parent createParentWithUser(ParentRequest request) {
-        User admin = userService.getCurrentUser();
-        School tenantSchool = getTenantSchool(admin);
+        School tenantSchool = getCurrentSchool();
 
         User savedUser = userProvisioningService.provisionUser(
                 request.getUsername(),
@@ -62,7 +50,7 @@ public class ParentService {
                 request.getPhoneNumber(),
                 request.getEmail(),
                 Role.ROLE_PARENT,
-                tenantSchool != null ? tenantSchool : admin.getSchool()
+                tenantSchool
         );
 
         Parent parent = new Parent();
@@ -76,27 +64,20 @@ public class ParentService {
     }
 
     public List<ParentDTO> getAllParents() {
-        User admin = userService.getCurrentUser();
-        School tenantSchool = getTenantSchool(admin);
-        List<Parent> parents = tenantSchool != null ? parentRepository.findByUserSchool(tenantSchool) : parentRepository.findAll();
-        return parents.stream().map(ParentMapper::toDto).collect(Collectors.toList());
+        return parentRepository.findAll().stream()
+                .map(ParentMapper::toDto)
+                .collect(Collectors.toList());
     }
 
     public void deleteParent(Long id) {
-        User admin = userService.getCurrentUser();
-        School tenantSchool = getTenantSchool(admin);
         Parent parent = parentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Veli bulunamadı!"));
-        assertParentBelongsToTenant(parent, tenantSchool);
         parentRepository.delete(parent);
     }
 
     public void updateParent(Long id, ParentRequest request) {
-        User admin = userService.getCurrentUser();
-        School tenantSchool = getTenantSchool(admin);
         Parent existing = parentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Veli bulunamadı!"));
-        assertParentBelongsToTenant(existing, tenantSchool);
 
         existing.setFirstName(request.getFirstName());
         existing.setLastName(request.getLastName());

@@ -7,7 +7,9 @@ import com.educonnect.model.Role;
 import com.educonnect.model.School;
 import com.educonnect.model.User;
 import com.educonnect.repository.MessageRepository;
+import com.educonnect.repository.SchoolRepository;
 import com.educonnect.repository.UserRepository;
+import com.educonnect.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,26 +28,22 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MessageService {
 
-    // 🚀 DRY / readability: named instead of repeated as bare string literals.
     private static final String TARGET_ALL_ADMINS = "ALL";
     private static final String TARGET_SUPER_ADMIN = "SUPER_ADMIN";
 
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
+    private final SchoolRepository schoolRepository;
     private final UserService userService;
 
-    private School getTenantSchool(User user) {
-        if (user.getRole() == Role.ROLE_SUPER_ADMIN) {
-            return null;
-        }
-        if (user.getSchool() == null) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu kullanıcının atanmış bir okulu yok.");
-        }
-        return user.getSchool();
+    private School getCurrentSchool() {
+        Long tenantId = TenantContext.getCurrentTenant();
+        if (tenantId == null) return null;
+        return schoolRepository.getReferenceById(tenantId);
     }
 
     private void assertCanMessage(User sender, User receiver) {
-        School tenantSchool = getTenantSchool(sender);
+        School tenantSchool = getCurrentSchool();
         if (tenantSchool == null || receiver.getRole() == Role.ROLE_SUPER_ADMIN) {
             return;
         }
@@ -56,35 +54,35 @@ public class MessageService {
 
     public void sendMessage(MessageRequest request) {
         User sender = userService.getCurrentUser();
+        School tenantSchool = getCurrentSchool();
 
         switch (request.getReceiverId()) {
             case TARGET_ALL_ADMINS -> {
-                School tenantSchool = getTenantSchool(sender);
                 List<User> admins = tenantSchool != null
                         ? userRepository.findBySchool_IdOrRole(tenantSchool.getId(), Role.ROLE_SUPER_ADMIN)
                         : userRepository.findByRoleIn(List.of(Role.ROLE_ADMIN, Role.ROLE_VICE_ADMIN));
                 admins = admins.stream()
                         .filter(admin -> admin.getRole() == Role.ROLE_ADMIN || admin.getRole() == Role.ROLE_VICE_ADMIN || admin.getRole() == Role.ROLE_SUPER_ADMIN)
                         .toList();
-                admins.forEach(admin -> saveMessage(sender, admin, request.getSubject(), request.getContent()));
+                admins.forEach(admin -> saveMessage(sender, admin, request.getSubject(), request.getContent(), tenantSchool));
             }
             case TARGET_SUPER_ADMIN -> {
                 User superAdmin = userRepository.findFirstByRole(Role.ROLE_SUPER_ADMIN)
                         .orElseThrow(() -> new ResourceNotFoundException("Super Admin bulunamadı!"));
                 assertCanMessage(sender, superAdmin);
-                saveMessage(sender, superAdmin, request.getSubject(), request.getContent());
+                saveMessage(sender, superAdmin, request.getSubject(), request.getContent(), tenantSchool);
             }
             default -> {
                 Long receiverId = parseReceiverId(request.getReceiverId());
                 User receiver = userRepository.findById(receiverId)
                         .orElseThrow(() -> new ResourceNotFoundException("Alıcı bulunamadı!"));
                 assertCanMessage(sender, receiver);
-                saveMessage(sender, receiver, request.getSubject(), request.getContent());
+                saveMessage(sender, receiver, request.getSubject(), request.getContent(), tenantSchool);
             }
         }
     }
 
-    private void saveMessage(User sender, User receiver, String subject, String content) {
+    private void saveMessage(User sender, User receiver, String subject, String content, School school) {
         Message msg = new Message();
         msg.setSender(sender);
         msg.setReceiver(receiver);
@@ -93,6 +91,7 @@ public class MessageService {
         msg.setSentAt(LocalDateTime.now());
         msg.setRead(false);
         msg.setSentByParent(sender.getRole() == Role.ROLE_PARENT);
+        msg.setSchool(school);
         messageRepository.save(msg);
     }
 
@@ -139,7 +138,7 @@ public class MessageService {
 
     public List<Map<String, Object>> searchUsersForMessage(String keyword) {
         User currentUser = userService.getCurrentUser();
-        School mySchool = currentUser.getSchool();
+        School mySchool = getCurrentSchool();
 
         if (keyword == null || keyword.trim().length() < 2) {
             return new ArrayList<>();

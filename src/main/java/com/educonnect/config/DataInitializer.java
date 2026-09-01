@@ -57,8 +57,8 @@ public class DataInitializer implements CommandLineRunner {
         log.warn("=========================================================");
         log.warn(" DEV bootstrap: created 'superadmin' account.");
         log.warn(" username: superadmin");
-        log.warn(" A random password was generated; it is NOT logged for security.\n Set a password for 'superadmin' using the admin endpoint or reset it in the DB.");
-        log.warn(" Change this password after first login. This message only appears because the 'dev' profile is active.");
+        log.warn(" password: {}  <-- DEV ONLY, change after first login!", generatedPassword);
+        log.warn(" This message only appears because the 'dev' profile is active.");
         log.warn("=========================================================");
     }
 }

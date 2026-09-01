@@ -11,7 +11,7 @@ import java.nio.file.Paths;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${app.cors.allowed-origins:http://localhost:5173}")
+    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:5174}")
     private String[] allowedOrigins;
 
     @Override
