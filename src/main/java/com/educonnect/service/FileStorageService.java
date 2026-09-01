@@ -45,8 +45,19 @@ public class FileStorageService {
         }
 
         String originalFileName = file.getOriginalFilename();
-        String uniqueFileName = UUID.randomUUID() + "_" + originalFileName;
-        Path filePath = uploadPath.resolve(uniqueFileName);
+        // Sanitize filename: remove path separators and normalize to base name
+        String safeOriginal = originalFileName == null ? "unnamed" : Paths.get(originalFileName).getFileName().toString();
+        // Remove potentially problematic characters and limit length
+        safeOriginal = safeOriginal.replaceAll("[^A-Za-z0-9._-]", "_");
+        if (safeOriginal.length() > 100) safeOriginal = safeOriginal.substring(0, 100);
+
+        String uniqueFileName = UUID.randomUUID() + "_" + safeOriginal;
+        Path filePath = uploadPath.resolve(uniqueFileName).normalize();
+
+        // Ensure the file stays inside the upload directory
+        if (!filePath.startsWith(uploadPath.toAbsolutePath())) {
+            throw new SecurityException("Invalid file path");
+        }
 
         Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
@@ -54,7 +65,7 @@ public class FileStorageService {
                 + (normalizedSubDir.isEmpty() ? "" : normalizedSubDir + "/")
                 + uniqueFileName;
 
-        return new StoredFile(originalFileName, uniqueFileName, publicUrl);
+        return new StoredFile(safeOriginal, uniqueFileName, publicUrl);
     }
 
     public void deleteFile(String publicUrl) throws IOException {
