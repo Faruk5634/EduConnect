@@ -34,23 +34,51 @@ public class MessageService {
     private final UserRepository userRepository;
     private final UserService userService;
 
+    private School getTenantSchool(User user) {
+        if (user.getRole() == Role.ROLE_SUPER_ADMIN) {
+            return null;
+        }
+        if (user.getSchool() == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu kullanıcının atanmış bir okulu yok.");
+        }
+        return user.getSchool();
+    }
+
+    private void assertCanMessage(User sender, User receiver) {
+        School tenantSchool = getTenantSchool(sender);
+        if (tenantSchool == null || receiver.getRole() == Role.ROLE_SUPER_ADMIN) {
+            return;
+        }
+        if (receiver.getSchool() == null || !tenantSchool.getId().equals(receiver.getSchool().getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Farklı okul kullanıcılarına mesaj gönderemezsiniz.");
+        }
+    }
+
     public void sendMessage(MessageRequest request) {
         User sender = userService.getCurrentUser();
 
         switch (request.getReceiverId()) {
             case TARGET_ALL_ADMINS -> {
-                List<User> admins = userRepository.findByRoleIn(List.of(Role.ROLE_ADMIN, Role.ROLE_VICE_ADMIN));
+                School tenantSchool = getTenantSchool(sender);
+                List<User> admins = tenantSchool != null
+                        ? userRepository.findBySchool_IdOrRole(tenantSchool.getId(), Role.ROLE_SUPER_ADMIN)
+                        : userRepository.findByRoleIn(List.of(Role.ROLE_ADMIN, Role.ROLE_VICE_ADMIN));
+                admins = admins.stream()
+                        .filter(admin -> admin.getRole() == Role.ROLE_ADMIN || admin.getRole() == Role.ROLE_VICE_ADMIN || admin.getRole() == Role.ROLE_SUPER_ADMIN)
+                        .toList();
                 admins.forEach(admin -> saveMessage(sender, admin, request.getSubject(), request.getContent()));
             }
             case TARGET_SUPER_ADMIN -> {
                 User superAdmin = userRepository.findFirstByRole(Role.ROLE_SUPER_ADMIN)
                         .orElseThrow(() -> new ResourceNotFoundException("Super Admin bulunamadı!"));
+                assertCanMessage(sender, superAdmin);
                 saveMessage(sender, superAdmin, request.getSubject(), request.getContent());
             }
             default -> {
                 Long receiverId = parseReceiverId(request.getReceiverId());
                 User receiver = userRepository.findById(receiverId)
                         .orElseThrow(() -> new ResourceNotFoundException("Alıcı bulunamadı!"));
+                assertCanMessage(sender, receiver);
                 saveMessage(sender, receiver, request.getSubject(), request.getContent());
             }
         }
@@ -99,8 +127,12 @@ public class MessageService {
     }
 
     public void markAsRead(Long id) {
+        User currentUser = userService.getCurrentUser();
         Message msg = messageRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Mesaj bulunamadı"));
+        if (!msg.getSender().getId().equals(currentUser.getId()) && !msg.getReceiver().getId().equals(currentUser.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu mesaj üzerinde işlem yapamazsınız.");
+        }
         msg.setRead(true);
         messageRepository.save(msg);
     }

@@ -3,8 +3,10 @@ package com.educonnect.service;
 import com.educonnect.dto.ParentDTO;
 import com.educonnect.dto.ParentRequest;
 import com.educonnect.exception.ResourceNotFoundException;
+import com.educonnect.mapper.ParentMapper;
 import com.educonnect.model.Parent;
 import com.educonnect.model.Role;
+import com.educonnect.model.School;
 import com.educonnect.model.User;
 import com.educonnect.repository.ParentRepository;
 import com.educonnect.repository.UserRepository;
@@ -12,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,8 +31,28 @@ public class ParentService {
     private final UsernameService usernameService;
     private final UserProvisioningService userProvisioningService; // 🚀 replaces duplicated account-creation logic
 
+    private School getTenantSchool(User user) {
+        if (user.getRole() == Role.ROLE_SUPER_ADMIN) {
+            return null;
+        }
+        if (user.getSchool() == null) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "Bu kullanıcının atanmış bir okulu yok.");
+        }
+        return user.getSchool();
+    }
+
+    private void assertParentBelongsToTenant(Parent parent, School tenantSchool) {
+        if (tenantSchool == null) {
+            return;
+        }
+        if (parent.getUser() == null || parent.getUser().getSchool() == null || !tenantSchool.getId().equals(parent.getUser().getSchool().getId())) {
+            throw new ResourceNotFoundException("Veli bulunamadı!");
+        }
+    }
+
     public Parent createParentWithUser(ParentRequest request) {
         User admin = userService.getCurrentUser();
+        School tenantSchool = getTenantSchool(admin);
 
         User savedUser = userProvisioningService.provisionUser(
                 request.getUsername(),
@@ -39,7 +62,7 @@ public class ParentService {
                 request.getPhoneNumber(),
                 request.getEmail(),
                 Role.ROLE_PARENT,
-                admin.getSchool()
+                tenantSchool != null ? tenantSchool : admin.getSchool()
         );
 
         Parent parent = new Parent();
@@ -54,17 +77,26 @@ public class ParentService {
 
     public List<ParentDTO> getAllParents() {
         User admin = userService.getCurrentUser();
-        List<Parent> parents = parentRepository.findByUserSchool(admin.getSchool());
-        return parents.stream().map(this::convertToDTO).collect(Collectors.toList());
+        School tenantSchool = getTenantSchool(admin);
+        List<Parent> parents = tenantSchool != null ? parentRepository.findByUserSchool(tenantSchool) : parentRepository.findAll();
+        return parents.stream().map(ParentMapper::toDto).collect(Collectors.toList());
     }
 
     public void deleteParent(Long id) {
-        parentRepository.deleteById(id);
+        User admin = userService.getCurrentUser();
+        School tenantSchool = getTenantSchool(admin);
+        Parent parent = parentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Veli bulunamadı!"));
+        assertParentBelongsToTenant(parent, tenantSchool);
+        parentRepository.delete(parent);
     }
 
     public void updateParent(Long id, ParentRequest request) {
+        User admin = userService.getCurrentUser();
+        School tenantSchool = getTenantSchool(admin);
         Parent existing = parentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Veli bulunamadı!"));
+        assertParentBelongsToTenant(existing, tenantSchool);
 
         existing.setFirstName(request.getFirstName());
         existing.setLastName(request.getLastName());
@@ -93,24 +125,6 @@ public class ParentService {
     public ParentDTO getParentProfileByUsername(String username) {
         Parent parent = parentRepository.findByUserUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Bu kullanıcıya ait veli profili bulunamadı!"));
-        return convertToDTO(parent);
-    }
-
-    private ParentDTO convertToDTO(Parent parent) {
-        List<String> studentNames = parent.getStudents() != null
-                ? parent.getStudents().stream()
-                  .map(student -> student.getFirstName() + " " + student.getLastName() + "|" + student.getSchoolNumber())
-                  .collect(Collectors.toList())
-                : List.of();
-
-        return new ParentDTO(
-                parent.getId(),
-                parent.getFirstName(),
-                parent.getLastName(),
-                parent.getEmail(),
-                parent.getPhoneNumber(),
-                parent.getUser() != null ? parent.getUser().getUsername() : null,
-                studentNames
-        );
+        return ParentMapper.toDto(parent);
     }
 }

@@ -12,6 +12,7 @@ import java.util.Optional;
 @Repository
 public interface ClassroomRepository extends JpaRepository<Classroom, Long> {
     List<Classroom> findByHomeroomTeacher(Teacher teacher);
+    Optional<Classroom> findByIdAndSchool(Long id, School school);
 
     // Scoped to school, so two schools can each have their own "9-A" etc.
     Optional<Classroom> findByNameAndSchool(String name, School school);

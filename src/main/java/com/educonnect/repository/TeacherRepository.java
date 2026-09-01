@@ -13,6 +13,7 @@ import java.util.Optional;
 @Repository
 public interface TeacherRepository extends JpaRepository<Teacher, Long> {
     List<Teacher> findByBranchContainingIgnoreCase(String branch);
+    List<Teacher> findByUserSchoolAndBranchContainingIgnoreCase(School school, String branch);
     Optional<Teacher> findByUserUsername(String username);
 
     // 🚀 SIZINTIYI ÖNLEYEN KÖPRÜ: Okula göre öğretmen getirme
