@@ -1,0 +1,16 @@
+# Example application.properties
+# Copy this to src/main/resources/application.properties and fill values locally.
+
+spring.application.name=EduConnect
+spring.datasource.url=jdbc:postgresql://localhost:5432/educonnect
+spring.datasource.username=postgres
+spring.datasource.password=change_me
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=false
+
+# JWT Configuration - DO NOT hardcode in production. Use environment variable JWT_SECRET.
+jwt.secret=your-very-long-random-secret
+
+# CORS allowed origins (comma-separated) for frontend
+app.cors.allowed-origins=http://localhost:5173
