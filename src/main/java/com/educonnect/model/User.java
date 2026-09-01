@@ -1,6 +1,10 @@
 package com.educonnect.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
@@ -13,6 +17,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.List;
 
+@FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "schoolId", type = Long.class))
+@Filter(name = "tenantFilter", condition = "school_id = :schoolId")
 @Entity
 @Table(name = "users")
 @Getter

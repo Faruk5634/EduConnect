@@ -11,7 +11,9 @@ import com.educonnect.model.Teacher;
 import com.educonnect.model.User;
 import com.educonnect.repository.ClassroomRepository;
 import com.educonnect.repository.TeacherRepository;
+import com.educonnect.repository.SchoolRepository;
 import com.educonnect.repository.UserRepository;
+import com.educonnect.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,33 +32,20 @@ public class TeacherService {
     private final TeacherRepository teacherRepository;
     private final ClassroomRepository classroomRepository;
     private final UserRepository userRepository;
+    private final SchoolRepository schoolRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserService userService;
     private final UsernameService usernameService;
-    private final UserProvisioningService userProvisioningService; // 🚀 replaces duplicated account-creation logic
+    private final UserProvisioningService userProvisioningService;
 
-    private School getTenantSchool(User user) {
-        if (user.getRole() == Role.ROLE_SUPER_ADMIN) {
-            return null;
-        }
-        if (user.getSchool() == null) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu kullanıcının atanmış bir okulu yok.");
-        }
-        return user.getSchool();
-    }
-
-    private void assertTeacherBelongsToTenant(Teacher teacher, School tenantSchool) {
-        if (tenantSchool == null) {
-            return;
-        }
-        if (teacher.getUser() == null || teacher.getUser().getSchool() == null || !tenantSchool.getId().equals(teacher.getUser().getSchool().getId())) {
-            throw new ResourceNotFoundException("Öğretmen bulunamadı!");
-        }
+    private School getCurrentSchool() {
+        Long tenantId = TenantContext.getCurrentTenant();
+        if (tenantId == null) return null;
+        return schoolRepository.getReferenceById(tenantId);
     }
 
     public Teacher createTeacherWithUser(TeacherRequest request) {
-        User admin = userService.getCurrentUser();
-        School tenantSchool = getTenantSchool(admin);
+        School tenantSchool = getCurrentSchool();
 
         User savedUser = userProvisioningService.provisionUser(
                 request.getUsername(),
@@ -66,7 +55,7 @@ public class TeacherService {
                 request.getPhone(),
                 request.getEmail(),
                 Role.ROLE_TEACHER,
-                tenantSchool != null ? tenantSchool : admin.getSchool()
+                tenantSchool
         );
 
         Teacher teacher = new Teacher();
@@ -79,21 +68,13 @@ public class TeacherService {
     }
 
     public List<TeacherDTO> getAllTeachers() {
-        User admin = userService.getCurrentUser();
-        School tenantSchool = getTenantSchool(admin);
-        return (tenantSchool != null ? teacherRepository.findByUserSchool(tenantSchool) : teacherRepository.findAll())
-                .stream()
+        return teacherRepository.findAll().stream()
                 .map(TeacherMapper::toDto)
                 .collect(Collectors.toList());
     }
 
     public List<TeacherDTO> searchTeachersByBranch(String branch) {
-        User admin = userService.getCurrentUser();
-        School tenantSchool = getTenantSchool(admin);
-        return (tenantSchool != null
-                ? teacherRepository.findByUserSchoolAndBranchContainingIgnoreCase(tenantSchool, branch)
-                : teacherRepository.findByBranchContainingIgnoreCase(branch))
-                .stream()
+        return teacherRepository.findByBranchContainingIgnoreCase(branch).stream()
                 .map(TeacherMapper::toDto)
                 .collect(Collectors.toList());
     }
@@ -105,11 +86,8 @@ public class TeacherService {
     }
 
     public void deleteTeacher(Long id) {
-        User admin = userService.getCurrentUser();
-        School tenantSchool = getTenantSchool(admin);
         Teacher teacher = teacherRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Öğretmen bulunamadı!"));
-        assertTeacherBelongsToTenant(teacher, tenantSchool);
 
         List<Classroom> classrooms = classroomRepository.findByHomeroomTeacher(teacher);
         for (Classroom cls : classrooms) {
@@ -121,11 +99,8 @@ public class TeacherService {
     }
 
     public void updateTeacher(Long id, TeacherRequest request) {
-        User admin = userService.getCurrentUser();
-        School tenantSchool = getTenantSchool(admin);
         Teacher existingTeacher = teacherRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Öğretmen bulunamadı!"));
-        assertTeacherBelongsToTenant(existingTeacher, tenantSchool);
 
         existingTeacher.setFirstName(request.getFirstName());
         existingTeacher.setLastName(request.getLastName());
@@ -161,8 +136,7 @@ public class TeacherService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu hesabın zaten bir öğretmen profili var!");
         }
 
-        User admin = userService.getCurrentUser();
-        School tenantSchool = getTenantSchool(admin);
+        School tenantSchool = getCurrentSchool();
         if (tenantSchool != null && (existingUser.getSchool() == null || !tenantSchool.getId().equals(existingUser.getSchool().getId()))) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu kullanıcı farklı bir okula ait.");
         }

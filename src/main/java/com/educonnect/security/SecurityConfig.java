@@ -29,6 +29,10 @@ public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final LoginRateLimitFilter loginRateLimitFilter;
+    
+    @org.springframework.context.annotation.Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.educonnect.service.UserService userService;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -53,6 +57,8 @@ public class SecurityConfig {
         http.addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class);
         // JWT authentication filter
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+        // Tenant context filter after authentication
+        http.addFilterAfter(new TenantFilter(userService), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

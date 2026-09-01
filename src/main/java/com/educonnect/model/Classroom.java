@@ -1,6 +1,10 @@
 package com.educonnect.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
+
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,6 +14,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
 import java.util.List;
 
+@FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "schoolId", type = Long.class))
+@Filter(name = "tenantFilter", condition = "school_id = :schoolId")
 @Entity
 @Getter
 @Setter
