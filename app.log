@@ -973,3 +973,39 @@ java.lang.SecurityException: Invalid file path
 2026-09-03T11:44:46.363+03:00  INFO 42176 --- [EduConnect] [SpringApplicationShutdownHook] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
 2026-09-03T11:44:46.365+03:00  INFO 42176 --- [EduConnect] [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
 2026-09-03T11:44:46.368+03:00  INFO 42176 --- [EduConnect] [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-09-03T11:44:50.749+03:00  INFO 8200 --- [EduConnect] [main] com.educonnect.EduConnectApplication     : Starting EduConnectApplication using Java 17.0.19 with PID 8200 (D:\EduConnect\target\classes started by omrfr in D:\EduConnect)
+2026-09-03T11:44:50.751+03:00  INFO 8200 --- [EduConnect] [main] com.educonnect.EduConnectApplication     : No active profile set, falling back to 1 default profile: "default"
+2026-09-03T11:44:51.426+03:00  INFO 8200 --- [EduConnect] [main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-09-03T11:44:51.482+03:00  INFO 8200 --- [EduConnect] [main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 49 ms. Found 8 JPA repository interfaces.
+2026-09-03T11:44:51.936+03:00  INFO 8200 --- [EduConnect] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-09-03T11:44:51.944+03:00  INFO 8200 --- [EduConnect] [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-09-03T11:44:51.945+03:00  INFO 8200 --- [EduConnect] [main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.21]
+2026-09-03T11:44:51.982+03:00  INFO 8200 --- [EduConnect] [main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1203 ms
+2026-09-03T11:44:52.090+03:00  INFO 8200 --- [EduConnect] [main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-09-03T11:44:52.121+03:00  INFO 8200 --- [EduConnect] [main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.12.Final
+2026-09-03T11:44:52.393+03:00  INFO 8200 --- [EduConnect] [main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-09-03T11:44:52.414+03:00  INFO 8200 --- [EduConnect] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-09-03T11:44:52.513+03:00  INFO 8200 --- [EduConnect] [main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@465d1345
+2026-09-03T11:44:52.514+03:00  INFO 8200 --- [EduConnect] [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-09-03T11:44:52.558+03:00  INFO 8200 --- [EduConnect] [main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://localhost:5432/educonnect]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 18.3
+	Default catalog/schema: educonnect/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-09-03T11:44:53.400+03:00  INFO 8200 --- [EduConnect] [main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-09-03T11:44:53.477+03:00  INFO 8200 --- [EduConnect] [main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-09-03T11:44:53.570+03:00  INFO 8200 --- [EduConnect] [main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-09-03T11:44:54.368+03:00  WARN 8200 --- [EduConnect] [main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-09-03T11:44:54.434+03:00  INFO 8200 --- [EduConnect] [main] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name customUserDetailsService
+2026-09-03T11:44:54.921+03:00  INFO 8200 --- [EduConnect] [main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-09-03T11:44:54.928+03:00  INFO 8200 --- [EduConnect] [main] com.educonnect.EduConnectApplication     : Started EduConnectApplication in 4.516 seconds (process running for 5.108)
+2026-09-03T11:45:15.510+03:00  INFO 8200 --- [EduConnect] [http-nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-09-03T11:45:15.511+03:00  INFO 8200 --- [EduConnect] [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-09-03T11:45:15.513+03:00  INFO 8200 --- [EduConnect] [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
