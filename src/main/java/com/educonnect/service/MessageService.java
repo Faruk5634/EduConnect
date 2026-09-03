@@ -155,7 +155,10 @@ public class MessageService {
                 .filter(u -> {
                     String fullName = (u.getFirstName() + " " + u.getLastName()).toLowerCase();
                     String uname = u.getUsername() != null ? u.getUsername().toLowerCase() : "";
-                    return fullName.contains(searchKey) || uname.contains(searchKey);
+                    // Also search by student school number if the user is a student
+                    String schoolNum = (u.getStudent() != null && u.getStudent().getSchoolNumber() != null)
+                            ? u.getStudent().getSchoolNumber().toLowerCase() : "";
+                    return fullName.contains(searchKey) || uname.contains(searchKey) || schoolNum.contains(searchKey);
                 })
                 .filter(u -> {
                     if (currentUser.getRole() == Role.ROLE_PARENT || currentUser.getRole() == Role.ROLE_STUDENT) {
@@ -181,6 +184,10 @@ public class MessageService {
             };
 
             map.put("role", roleStr);
+            // Include school number for students so the frontend can display it
+            if (u.getStudent() != null && u.getStudent().getSchoolNumber() != null) {
+                map.put("schoolNumber", u.getStudent().getSchoolNumber());
+            }
             result.add(map);
         }
         return result;

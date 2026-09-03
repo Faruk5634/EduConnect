@@ -35,30 +35,37 @@ public class FileStorageService {
             throw new IllegalArgumentException("Boş dosya yüklenemez!");
         }
 
+        // ── 1. Sanitize file name ───────────────────────────────────────────
+        String originalFileName = file.getOriginalFilename();
+        // Strip any directory component that the client might have included
+        String safeOriginal = originalFileName == null
+                ? "unnamed"
+                : Paths.get(originalFileName).getFileName().toString();
+        // Allow only safe characters; replace everything else with '_'
+        safeOriginal = safeOriginal.replaceAll("[^A-Za-z0-9._-]", "_");
+        // Cap the length to avoid overly long filenames on some filesystems
+        if (safeOriginal.length() > 100) safeOriginal = safeOriginal.substring(0, 100);
+
+        // ── 2. Resolve upload directory ────────────────────────────────────
         String normalizedSubDir = (subDirectory == null || subDirectory.isBlank()) ? "" : subDirectory.trim();
         Path uploadPath = normalizedSubDir.isEmpty()
                 ? Paths.get(BASE_UPLOAD_DIR)
                 : Paths.get(BASE_UPLOAD_DIR, normalizedSubDir);
 
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-        }
+        // Always ensure the directory exists (idempotent, no race condition)
+        Files.createDirectories(uploadPath);
 
-        String originalFileName = file.getOriginalFilename();
-        // Sanitize filename: remove path separators and normalize to base name
-        String safeOriginal = originalFileName == null ? "unnamed" : Paths.get(originalFileName).getFileName().toString();
-        // Remove potentially problematic characters and limit length
-        safeOriginal = safeOriginal.replaceAll("[^A-Za-z0-9._-]", "_");
-        if (safeOriginal.length() > 100) safeOriginal = safeOriginal.substring(0, 100);
-
+        // ── 3. Build unique file path & path-traversal guard ───────────────
+        Path absoluteUploadPath = uploadPath.toAbsolutePath().normalize();
         String uniqueFileName = UUID.randomUUID() + "_" + safeOriginal;
-        Path filePath = uploadPath.resolve(uniqueFileName).normalize();
+        Path filePath = absoluteUploadPath.resolve(uniqueFileName).normalize();
 
-        // Ensure the file stays inside the upload directory
-        if (!filePath.startsWith(uploadPath.toAbsolutePath())) {
-            throw new SecurityException("Invalid file path");
+        // Both sides are now absolute — this comparison is reliable
+        if (!filePath.startsWith(absoluteUploadPath)) {
+            throw new SecurityException("Invalid file path: directory traversal detected");
         }
 
+        // ── 4. Write file ──────────────────────────────────────────────────
         Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
         String publicUrl = "/" + BASE_UPLOAD_DIR + "/"
